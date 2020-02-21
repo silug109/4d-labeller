@@ -211,6 +211,12 @@ class Bev_Canvas_2(pg.GraphicsView):
         object["3d_object"] = cubegl_object
         self.parent().objects[object_ind] = object
 
+    def reser(self):
+        for item in self.bev_view.addedItems:
+            print(item)
+
+
+
     # def mouseDragEvent(self, ev):
     #     super().mouseDragEvent(ev)
     #     self.parent().change_status(''.join([" Drag event in bev widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))

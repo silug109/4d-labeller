@@ -92,6 +92,8 @@ class mainwindows(QtWidgets.QWidget):
         self.real_main_layout = QtWidgets.QVBoxLayout()
 
         self.menu = QtGui.QMenuBar(self)
+        self.real_main_layout.addWidget(self.menu)
+
         file = self.menu.addMenu('&File')
 
         exitAction = QtWidgets.QAction('&Exit', self)
@@ -110,7 +112,6 @@ class mainwindows(QtWidgets.QWidget):
 
 
         transform = self.menu.addMenu('&Transform')
-        self.real_main_layout.addWidget(self.menu)
 
         LoadCalibAction = QtWidgets.QAction('&Calibration load', self)
         LoadCalibAction.setStatusTip('Exit application')
@@ -119,6 +120,19 @@ class mainwindows(QtWidgets.QWidget):
         transform.addAction(LoadCalibAction)
         # TODO функция с калибровкой
 
+        annotations = self.menu.addMenu('&Annotations')
+
+        SaveAnnotationsAction = QtWidgets.QAction('&Save annotations', self)
+        SaveAnnotationsAction.setStatusTip('Save annotations')
+        SaveAnnotationsAction.triggered.connect(app.quit)
+        # LoadCalibAction.triggered.connect(self.save_annotations)
+        annotations.addAction(SaveAnnotationsAction)
+
+        LoadAnnotationsAction = QtWidgets.QAction('&Load annotations', self)
+        LoadAnnotationsAction.setStatusTip('Load annotations')
+        LoadAnnotationsAction.triggered.connect(app.quit)
+        # LoadCalibAction.triggered.connect(self.save_annotations)
+        annotations.addAction(LoadAnnotationsAction)
 
         self.main_layout = QtWidgets.QHBoxLayout()
 
