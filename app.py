@@ -11,6 +11,7 @@ from window_2d import *
 import numpy as np
 
 from libs.canvas import Canvas
+from main_windows.info_window import *
 
 from extra_windows import Pointcloud_Canvas
 
@@ -82,22 +83,47 @@ class mainwindows(QtWidgets.QWidget):
         self.bev_lid_dict = dict()
 
 
+
+
         super(mainwindows,self).__init__()
 
         self.resize(1280,720)
-        self.main_layout = QtWidgets.QHBoxLayout()
 
+        self.real_main_layout = QtWidgets.QVBoxLayout()
 
-        self.menu =  QtGui.QMenuBar(self)
+        self.menu = QtGui.QMenuBar(self)
         file = self.menu.addMenu('&File')
+
+        exitAction = QtWidgets.QAction('&Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit application')
+        exitAction.triggered.connect(app.quit)
+        file.addAction(exitAction)
+
+        OpenFileAction = QtWidgets.QAction('&Open_file', self)
+        OpenFileAction.setShortcut('Ctrl+N')
+        OpenFileAction.setStatusTip('open new file to label')
+        OpenFileAction.triggered.connect(app.quit)
+        # OpenFileAction.triggered.connect(self.open_file)
+        file.addAction(OpenFileAction)
+        # TODO функция с загрузкой файлов
+
+
         transform = self.menu.addMenu('&Transform')
-        self.main_layout.addWidget(self.menu)
+        self.real_main_layout.addWidget(self.menu)
+
+        LoadCalibAction = QtWidgets.QAction('&Calibration load', self)
+        LoadCalibAction.setStatusTip('Exit application')
+        LoadCalibAction.triggered.connect(app.quit)
+        # LoadCalibAction.triggered.connect(self.load_calib)
+        transform.addAction(LoadCalibAction)
+        # TODO функция с калибровкой
+
+
+        self.main_layout = QtWidgets.QHBoxLayout()
 
         self.statusbar = QtGui.QStatusBar(self)
         self.statusbar.showMessage("I'm")
-
-
-
 
         self.left_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
@@ -141,9 +167,8 @@ class mainwindows(QtWidgets.QWidget):
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
         self.create_ROI_but.clicked.connect(self.create_ROI)
 
-        self.create_ROI_2 = QtWidgets.QPushButton('create ROI')
+        self.create_ROI_2 = QtWidgets.QPushButton('select')
         self.create_ROI_2.clicked.connect(self.select_item)
-        # self.create_ROI_2.clicked.connect(self.update_3d_boxes)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -158,8 +183,10 @@ class mainwindows(QtWidgets.QWidget):
         self.button_layout_2.addWidget(self.twod)
         self.button_layout_2.addWidget(self.camera)
 
-        self.list_widget = QtWidgets.QListWidget(self)
-        self.list_widget.setSelectionMode( QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        self.list_widget = ListWidg(self)
+        # self.list_widget = QtWidgets.QListWidget(self)
+        # self.list_widget.setSelectionMode( QtWidgets.QAbstractItemView.ExtendedSelection)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_item)
@@ -188,8 +215,9 @@ class mainwindows(QtWidgets.QWidget):
 
         self.left_layout.addWidget(self.statusbar)
 
+        self.real_main_layout.addLayout(self.main_layout)
 
-        self.setLayout(self.main_layout)
+        self.setLayout(self.real_main_layout)
 
 
         self.load_radar_poincloud()
@@ -344,14 +372,20 @@ class mainwindows(QtWidgets.QWidget):
             class_instance = "Cat"
             id_instance = "some_id"
 
-            list_object = QtWidgets.QListWidgetItem("Box "+ str(ind))
+            myListWidget = QCustomQWidget()
+            myListWidget.setTextUp(class_instance)
+            myListWidget.setTextDown(str(coord))
+
+            # list_object =
+            # list_object = QtWidgets.QListWidgetItem("Box "+ str(ind))
             # list_object = "Box "+ str(ind)
 
             item["coord"] = coord
             item["class"] = class_instance
             item["3d_object"] = cubegl_object
             item["id"] = id_instance
-            item["listitem"] = list_object
+            # item["listitem"] = list_object
+            item["listwidgetitem"] = myListWidget
 
 
         # print(self.objects)
@@ -363,15 +397,14 @@ class mainwindows(QtWidgets.QWidget):
 
         self.list_widget.clear()
 
-        # for k,v in self.objects_dict.items():
-        #     self.list_widget.addItem("Box"+str(k))
-
-        # for ind,item in enumerate(self.objects):
-        #     self.list_widget.addItem("Box"+str(ind))
-
         for ind,item in enumerate(self.objects):
-            name = item["listitem"]
-            self.list_widget.addItem(name)
+            MyListWidgetObject = item["listwidgetitem"]
+            ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
+            ListWidgetItem.setSizeHint(MyListWidgetObject.sizeHint())
+            self.list_widget.addItem(ListWidgetItem)
+            self.list_widget.setItemWidget(ListWidgetItem, MyListWidgetObject)
+            item["listitem"] = ListWidgetItem
+
 
     def create_3d_cube(self,pos, size , angle = 0):
 
@@ -384,12 +417,6 @@ class mainwindows(QtWidgets.QWidget):
         y_bot = y - w/2
         z_top = 10
         z_bot = 0
-
-        # corners = []
-        # for i in [x_top, x_bot]:
-        #     for j in [y_top, y_bot]:
-        #         for k in [z_top,z_bot]:
-        #             corners.append([i,j,k])
 
         corners = [[x_top, y_bot, z_bot],
                    [x_bot, y_bot, z_bot],
@@ -434,13 +461,12 @@ class mainwindows(QtWidgets.QWidget):
         for list_item in self.list_widget.selectedItems():
             self.list_widget.takeItem(self.list_widget.row(list_item))
 
-            print(list_item)
-            print(self.objects)
+            # print(list_item)
+            # print(self.objects)
 
             # print([item["listitem"] for item in self.objects], list_item)
             object_ind = [item["listitem"] for item in self.objects].index(list_item)
 
-            print(object_ind)
             object_2_del = self.objects.pop(object_ind)
 
             # print(object_2_del["3d_object"])
@@ -453,28 +479,16 @@ class mainwindows(QtWidgets.QWidget):
             self.bev_widget.bev_view.removeItem(object_2_del["Bev_object"])
 
             self.threed_vis.removeItem(object_2_del["3d_object"])
-            # self.update_3d_boxes()
 
     def select_item(self):
 
         self.selected_boxes = []
-
-        # print(self.list_widget.selectedIndexes())
 
         for list_item in self.list_widget.selectedItems():
             object_tuple = self.objects[self.list_widget.row(list_item)]
 
             self.selected_boxes.append(object_tuple["3d_object"])
 
-            # print(object_tuple)
-
-            # print(self.bev_lid_dict[object_tuple[1]])
-
-            # self.selected_boxes.append(self.bev_lid_dict[object_tuple[1]])
-
-            # print([ind for ind,item in enumerate(self.objects) if item["Bev_object"] == object_tuple[1]])
-            # ind_object = [ind for ind,item in enumerate(self.objects) if item["Bev_object"] == object_tuple[1]][0]
-            # self.selected_boxes.append(self.objects[ind_object]["3d_object"])
 
 if __name__ == '__main__':
 

@@ -195,6 +195,7 @@ class Bev_Canvas_2(pg.GraphicsView):
                     self.update_object_db(ind[0])
 
                     self.parent().update_3d_boxes()
+                    # self.parent().update_list_widget()
 
     def update_object_db(self, object_ind):
         object = self.parent().objects[object_ind]

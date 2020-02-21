@@ -40,11 +40,11 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
             elif (ev.modifiers() == QtCore.Qt.ShiftModifier):
 
-                self.highlight_object(None)
-                # self.parent().change_status(
-                #     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
+                # self.highlight_object(None)
+                self.parent().change_status(
+                    ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
                 # print(diff.x())
-                # self.scale_object(None, diff.x())
+                self.scale_object(self.parent().selected_boxes, diff.x())
 
             else:
                 self.orbit(-diff.x(), diff.y())
@@ -134,7 +134,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         if (sign != 0) and (len(object_list) > 0 ):
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
-                    item.translate(0,0,sign/abs(sign)*0.5)
+                    item.translate(0,0,-sign/abs(sign)*0.5)
             self.update()
 
     def scale_object(self, object_list ,  sign):
