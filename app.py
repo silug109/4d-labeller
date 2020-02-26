@@ -443,9 +443,10 @@ class mainwindows(QtWidgets.QWidget):
         corners = np.array(corners)
 
         print(angle)
+
         angle = angle*np.pi/180
-        Rotational_matrix = np.array([[np.cos(angle), -np.sin(angle), 0]
-                                     ,[np.sin(angle), np.cos(angle), 0]
+        Rotational_matrix = np.array([[np.cos(angle), np.sin(angle), 0]
+                                     ,[-np.sin(angle), np.cos(angle), 0]
                                      ,[0,0,1]])
 
         corners = corners.dot(Rotational_matrix)
