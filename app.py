@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 import numpy.matlib as matlib
 from math import sin, cos, atan2, sqrt
 import random
-from window_2d import *
+# from window_2d import *
 import numpy as np
 
 from libs.canvas import Canvas
 from main_windows.info_window import *
 
-from extra_windows import Pointcloud_Canvas
+# from extra_windows import Pointcloud_Canvas
 
 
 def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elevation_max=16):

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy.matlib as matlib
 from math import sin, cos, atan2, sqrt
 import random
-from window_2d import *
+# from window_2d import *
 import numpy as np
 
 
@@ -27,6 +27,8 @@ import numpy as np
 import sys
 from PyQt5 import QtGui,QtWidgets
 
+
+class_list = ["Car", "Human", "Kamaz", "Moto"]
 
 class ListWidg(QtWidgets.QListWidget):
     """модицифированный класс ListWidget с переопределенной логикой mouseDoubleClick"""
@@ -124,12 +126,13 @@ class QCustomQWidget (QtGui.QWidget):
         super(QCustomQWidget, self).__init__(parent)
         self.textQVBoxLayout = QtGui.QVBoxLayout()
         self.textUpQLabel = QtGui.QLabel()
-        self.textDownQLabel = QtGui.QLabel()
         self.textQVBoxLayout.addWidget(self.textUpQLabel)
+        self.textDownQLabel = QtGui.QLabel()
         self.textQVBoxLayout.addWidget(self.textDownQLabel)
         self.allQHBoxLayout = QtGui.QHBoxLayout()
-        self.iconQLabel = QtGui.QLabel()
-        self.allQHBoxLayout.addWidget(self.iconQLabel, 0)
+
+        self.class_combo = QtWidgets.QComboBox()
+        self.allQHBoxLayout.addWidget(self.class_combo)
 
         # self.class_dialog = QtWidgets.QInputDialog()
         # self.allQHBoxLayout.addWidget(self.class_dialog)
@@ -146,12 +149,22 @@ class QCustomQWidget (QtGui.QWidget):
         # setStyleSheet
         self.textUpQLabel.setStyleSheet(''' color: rgb(0, 0, 255); ''')
         self.textDownQLabel.setStyleSheet(''' color: rgb(255, 0, 0); ''')
+
+        self.setComboBox()
+        self.class_combo.currentIndexChanged.connect(self.print_if_change)
+
+    def print_if_change(self):
+        print(self," CHANGED its class to ", self.class_combo.currentText())
+
+
+
     def setTextUp (self, text):
         self.textUpQLabel.setText(text)
     def setTextDown (self, text):
         self.textDownQLabel.setText(text)
-    def setIcon (self, imagePath):
-       self.iconQLabel.setPixmap(QtGui.QPixmap(imagePath))
+    def setComboBox(self):
+        self.class_combo.insertItems(1,class_list)
+
         # TODO как выкидывать измененный объект из класса, который ни наследуется, ни может возвращать
 
 

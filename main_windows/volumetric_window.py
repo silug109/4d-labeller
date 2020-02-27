@@ -261,7 +261,6 @@ if __name__ == "__main__":
     mainwindow.setLayout(main_layout)
     mainwindow.resize(1200,1200)
 
-
     mainwindow.show()
 
     sys.exit(app.exec())
