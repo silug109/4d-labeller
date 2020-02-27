@@ -27,34 +27,60 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.setMouseTracking(True)
 
     def mouseMoveEvent(self, ev):
-        self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))
+
+        # super().mouseMoveEvent(ev)
+
+
 
         diff = ev.pos() - self.mousePos
         self.mousePos = ev.pos()
 
+        if (self.parent() is not None) and hasattr(self.parent(),"change_status"):
+            self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))
+        else:
+            print(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())," ", str(diff.x())]))
+
+            objecs = self.itemsAt([ev.pos().x(), ev.pos().y(),20,20])
+            print("Тута есть обжектс", objecs)
+
         if ev.buttons() == QtCore.Qt.LeftButton:
             if (ev.modifiers() == QtCore.Qt.ControlModifier):
-                self.parent().change_status(
-                    ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "translate mode"]))
-                self.translate_object(self.parent().selected_boxes, diff.x())
 
+                if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
+                    self.parent().change_status(
+                    ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "translate mode"]))
+                # self.translate_object(self.parent().selected_boxes, diff.x())
+                self.translate_object(self.objects_selected, diff.x())
             elif (ev.modifiers() == QtCore.Qt.ShiftModifier):
 
                 # self.highlight_object(None)
-                self.parent().change_status(
+                if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
+                    self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
                 # print(diff.x())
-                self.scale_object(self.parent().selected_boxes, diff.x())
+                # self.scale_object(self.parent().selected_boxes, diff.x())
+                self.scale_object(self.objects_selected, diff.x())
 
             else:
                 self.orbit(-diff.x(), diff.y())
-                self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "orbit"]))
+
+                if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
+                    self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "orbit"]))
             # print self.opts['azimuth'], self.opts['elevation']
         elif ev.buttons() == QtCore.Qt.MidButton:
             if (ev.modifiers() & QtCore.Qt.ControlModifier):
                 self.pan(diff.x(), 0, diff.y(), relative=True)
             else:
                 self.pan(diff.x(), diff.y(), 0, relative=True)
+
+            #TODO разобраться с наследованием функций
+
+    def mousePressEvent(self, ev):
+
+        if ev.buttons() == Qt.LeftButton:
+            self.objects_selected = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
+            print("выделено объектов:", len(self.objects_selected))
+
 
     def update_3d_boxes(self):
 
@@ -118,7 +144,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
                           [3, 6, 5], [3, 7, 5]])
 
         Cube = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(1.0, 0, 0, 0.3), drawEdges=True)
-        self.main.addItem(Cube)
+        self.addItem(Cube)
 
 
     def select_objects(self):
@@ -232,11 +258,17 @@ class Volumetric_widget_2(gl.GLViewWidget):
         return points_cord, colors_arr
 
 
+
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
+
+
     mainwindow = QtWidgets.QWidget()
     widg = Volumetric_widget_2(mainwindow)
+    widg.create_3d_cube((10,10),(20,20))
+    widg.create_3d_cube((-110, 20), (20, 20))
 
     but_1 = QPushButton("button_1")
     # but_1.clicked.connect()
