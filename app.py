@@ -156,7 +156,8 @@ class mainwindows(QtWidgets.QWidget):
 
 
         from main_windows.bev_window import Bev_Canvas_2
-        self.bev_widget = Bev_Canvas_2(self)
+        self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main")
+
         # self.bev_widget.resize(640,640)
         # self.bev_widget.bev_view.resize(640,640)
 
@@ -425,6 +426,8 @@ class mainwindows(QtWidgets.QWidget):
         x,y = pos
         l,w = size
 
+        z = 5
+
         x_top = x + l/2
         x_bot = x - l/2
         y_top = y + w/2
@@ -449,7 +452,14 @@ class mainwindows(QtWidgets.QWidget):
                                      ,[-np.sin(angle), np.cos(angle), 0]
                                      ,[0,0,1]])
 
+
+        corners[:, 0] -= x - l/2
+        corners[:, 1] -= y - w/2
+
         corners = corners.dot(Rotational_matrix)
+
+        corners[:, 0] += x - l/2
+        corners[:, 1] += y - w/2
 
         vertexes = np.array([[1, 0, 0],  # 0
                              [0, 0, 0],  # 1
@@ -468,6 +478,7 @@ class mainwindows(QtWidgets.QWidget):
                           [3, 6, 5], [3, 7, 5]])
 
         Cube = gl.GLMeshItem(vertexes = corners, faces = faces, faceColors = (1.0,1.0,0,0.3), drawEdges = True)
+
         # self.threed_vis.addItem(Cube)
         return Cube
 

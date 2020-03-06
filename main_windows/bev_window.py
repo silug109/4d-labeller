@@ -35,7 +35,7 @@ class Bev_Canvas_2(pg.GraphicsView):
     epsilon = 11.0
 
     def __init__(self, dev_mode = None, *args, **kwargs):
-        super(Bev_Canvas_2, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
     #     # Initialise local state.
     #     self.mode = self.EDIT
     #     self.shapes = []
@@ -183,25 +183,34 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         rois = [item for item in self.bev_view.addedItems if isinstance(item,pg.RectROI)]
 
+
         for roi in rois:
-            if roi.isMoving:
-                print("УГОЛ: ",roi.angle())
+            # if roi.isMoving:
+            #     print("УГОЛ: ",roi.angle())
 
-                if self.dev_mode != "SOLO":
-                    ind =  [item["Bev_object"] for item in self.parent().objects].index(roi)
-                    # ind =  [number for number,item in enumerate(self.parent().objects) if item["Bev_object"] == roi]
-                    if len(ind) != 0:
-                        self.update_object_db(ind[0])
+            print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
+            ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
+            self.update_object_db(ind)
 
-                        self.parent().update_3d_boxes()
-                        # self.parent().update_list_widget()
+            self.parent().update_3d_boxes()
+
+                # if self.dev_mode == "Main":
+                #     ind =  [item["Bev_object"] for item in self.parent().objects].index(roi)
+                #     print(ind)
+                #     # ind =  [number for number,item in enumerate(self.parent().objects) if item["Bev_object"] == roi]
+                #     if len(ind) != 0:
+                #         self.update_object_db(ind[0])
+                #
+                #         self.parent().update_3d_boxes()
+                #         # self.parent().update_list_widget()
+            #TODO логику синхронизации переписать
 
     def update_object_db(self, object_ind):
         object = self.parent().objects[object_ind]
 
         bev_object = object["Bev_object"]
         x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
-        x, y = x + l / 2, y + w / 2
+        x, y = x + l / 2, y + w / 2 #RECT ROI x,y - left bottom points though move it to logical center
         cubegl_object = self.parent().create_3d_cube([x, y], [l, w], angle)
 
         coord = {"x": x, "y": y, "z": 5, "l": l, "w": w, "h": 10}

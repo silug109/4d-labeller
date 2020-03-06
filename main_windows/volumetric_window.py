@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 class Volumetric_widget_2(gl.GLViewWidget):
     def __init__(self, *args, **kwargs):
+
         self.scale = 1.0
         super(Volumetric_widget_2, self).__init__(*args, **kwargs)
 
@@ -25,6 +26,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.mousePos = QtCore.QPoint(0,0)
 
         self.setMouseTracking(True)
+
+        self.object_selected = pyqtSignal()
 
     def mouseMoveEvent(self, ev):
 
@@ -77,8 +80,19 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
     def mousePressEvent(self, ev):
 
-        if ev.buttons() == Qt.LeftButton:
+        if ev.buttons() == Qt.LeftButton and ev.modifiers() == QtCore.Qt.ShiftModifier:
+            print("режим множественного выделения")
+
+            new_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
+
+            for object in new_objects:
+                self.object_selected.append(object)
+
+            print("Итого выделено объектов: ", len(self.object_selected))
+
+        elif ev.buttons() == Qt.LeftButton:
             self.objects_selected = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
+
             print("выделено объектов:", len(self.objects_selected))
 
 
