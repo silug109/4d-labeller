@@ -71,7 +71,8 @@ class mainwindows(QtWidgets.QWidget):
     def __init__(self):
 
         self.objects = []
-        self.objects_dict = dict()
+
+        # self.objects_dict = dict()
         # self.objects_dict.setdefault()
 
         self.filePath = None
@@ -80,7 +81,8 @@ class mainwindows(QtWidgets.QWidget):
         self.labels = None
 
         self.selected_boxes = []
-        self.bev_lid_dict = dict()
+        self.selected_objects_idxs = []
+        # self.bev_lid_dict = dict()
 
 
 
@@ -202,6 +204,7 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget = ListWidg(self)
         # self.list_widget = QtWidgets.QListWidget(self)
         # self.list_widget.setSelectionMode( QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.list_widget.SigSelectionChanged.connect(self.SignalListCheck)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_item)
@@ -237,6 +240,51 @@ class mainwindows(QtWidgets.QWidget):
 
         self.load_radar_poincloud()
         print(len(self.pointcloud_data))
+
+
+    def SignalListCheck(self):
+        print("Update in list widget")
+
+        SelectedListItems = self.list_widget.current_selected
+        # print("In main: ",len(SelectedListItems))
+
+        selected_idxs = []
+        for ListItem in SelectedListItems:
+            idx = [item["listitem"] for item in self.objects].index(ListItem)
+            selected_idxs.append(idx)
+
+        print(selected_idxs)
+
+        self.update_selection(selected_idxs, source = "ListWidget")
+
+    def Signal3DCheck(self):
+        pass
+
+    def SignalBevCheck(self):
+        pass
+
+    def update_selection(self, idxs, source = None):
+
+        if source not in ["ListWidget", "threed_vis", "BevWidget"]:
+            raise Exception
+
+        self.selected_objects_idxs = idxs
+
+        if source == "ListWidget":
+            self.update_3d_boxes_selection(idxs)
+            # self.update_3d_boxes(idxs)
+            # self.bev_update(idxs)
+
+
+        # self.update_list_widget(idxs)
+        # self.update_3d_boxes(idxs)
+        # self.update_bev_boxes(idxs)
+
+
+
+
+
+
 
 
     def change_status(self,text):
@@ -296,6 +344,10 @@ class mainwindows(QtWidgets.QWidget):
         '''
         pass
 
+
+    def create_3d_cube(self, pos, size, angle=0):
+        return self.threed_vis.create_3d_cube(pos,size,angle)
+
     def printoutboxes(self):
         list_bb = self.bev_view.addedItems
         if len(list_bb) > 1:
@@ -304,7 +356,6 @@ class mainwindows(QtWidgets.QWidget):
             for items in list_bb:
                 if isinstance(items,pg.RectROI):
                     print(items.pos()[0], items.pos()[1], items.size()[0], items.size()[1])
-
 
     def update_3d_boxes(self):
 
@@ -339,6 +390,19 @@ class mainwindows(QtWidgets.QWidget):
         #             self.bev_lid_dict[items] = cube_object
         #             print(x,y,l,w)
 
+    def update_3d_boxes_selection(self, idxs):
+        selected_object = [self.objects[idx]["3d_object"] for idx in idxs]
+
+        self.threed_vis.current_selected = selected_object
+        self.threed_vis.highlight_object()
+
+        # for item in self.threed_vis.items:
+        #     if isinstance(item, gl.GLMeshItem):
+        #         if item in selected_object:
+        #             item.opts["edgeColor"] = (0,0,1,0.6)
+        #         else:
+        #             item.opts["edgeColor"] = (1,1,1,1)
+        # self.threed_vis.update()
 
     def create_ROI(self):
 
@@ -365,9 +429,6 @@ class mainwindows(QtWidgets.QWidget):
 
         # self.objects.append((class_box, bounding_box))
 
-
-        # self.update_list_widget()
-
         # self.list_widget.addItem("Box" + str(len(self.objects)))
 
         return bounding_box
@@ -381,7 +442,7 @@ class mainwindows(QtWidgets.QWidget):
             bev_object = item["Bev_object"]
             x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
             x, y = x + l / 2, y + w / 2
-            cubegl_object = self.create_3d_cube([x, y], [l, w], angle)
+            cubegl_object = self.threed_vis.create_3d_cube([x, y], [l, w], angle)
 
             coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10}
             class_instance = "Cat"
@@ -401,12 +462,10 @@ class mainwindows(QtWidgets.QWidget):
             item["id"] = id_instance
             # item["listitem"] = list_object
             item["listwidgetitem"] = myListWidget
+            item["IsSelected"] = False
 
 
         # print(self.objects)
-
-
-
 
     def update_list_widget(self):
 
@@ -420,67 +479,13 @@ class mainwindows(QtWidgets.QWidget):
             self.list_widget.setItemWidget(ListWidgetItem, MyListWidgetObject)
             item["listitem"] = ListWidgetItem
 
-
-    def create_3d_cube(self,pos, size , angle = 0):
-
-        x,y = pos
-        l,w = size
-
-        z = 5
-
-        x_top = x + l/2
-        x_bot = x - l/2
-        y_top = y + w/2
-        y_bot = y - w/2
-        z_top = 10
-        z_bot = 0
-
-        corners = [[x_top, y_bot, z_bot],
-                   [x_bot, y_bot, z_bot],
-                   [x_bot, y_top, z_bot],
-                   [x_bot, y_bot, z_top],
-                   [x_top, y_top, z_bot],
-                   [x_top, y_top, z_top],
-                   [x_bot, y_top, z_top],
-                   [x_top, y_bot, z_top]]
-        corners = np.array(corners)
-
-        print(angle)
-
-        angle = angle*np.pi/180
-        Rotational_matrix = np.array([[np.cos(angle), np.sin(angle), 0]
-                                     ,[-np.sin(angle), np.cos(angle), 0]
-                                     ,[0,0,1]])
-
-
-        corners[:, 0] -= x - l/2
-        corners[:, 1] -= y - w/2
-
-        corners = corners.dot(Rotational_matrix)
-
-        corners[:, 0] += x - l/2
-        corners[:, 1] += y - w/2
-
-        vertexes = np.array([[1, 0, 0],  # 0
-                             [0, 0, 0],  # 1
-                             [0, 1, 0],  # 2
-                             [0, 0, 1],  # 3
-                             [1, 1, 0],  # 4
-                             [1, 1, 1],  # 5
-                             [0, 1, 1],  # 6
-                             [1, 0, 1]])  # 7
-
-        faces = np.array([[1, 0, 7], [1, 3, 7],
-                          [1, 2, 4], [1, 0, 4],
-                          [1, 2, 6], [1, 3, 6],
-                          [0, 4, 5], [0, 7, 5],
-                          [2, 4, 5], [2, 6, 5],
-                          [3, 6, 5], [3, 7, 5]])
-
-        Cube = gl.GLMeshItem(vertexes = corners, faces = faces, faceColors = (1.0,1.0,0,0.3), drawEdges = True)
-
-        # self.threed_vis.addItem(Cube)
-        return Cube
+    def update_list_widget_selection(self):
+        for idx in self.selected_objects_idxs:
+            list_item = self.objects[idx]["listitem"]
+            list_item.setSelected(True)
+            list_ind = self.list_widget.row(list_item)
+            list_instance = self.list_widget.item(list_ind)
+            list_instance.setSelected(True)
 
     def delete_item(self):
 

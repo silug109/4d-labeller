@@ -27,7 +27,11 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         self.setMouseTracking(True)
 
-        self.object_selected = pyqtSignal()
+        self.object_selected_signal = pyqtSignal()
+        self.object_changed_signal = pyqtSignal()
+
+        self.current_selected = None
+
 
     def mouseMoveEvent(self, ev):
 
@@ -40,11 +44,11 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         if (self.parent() is not None) and hasattr(self.parent(),"change_status"):
             self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))
-        else:
-            print(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())," ", str(diff.x())]))
-
-            objecs = self.itemsAt([ev.pos().x(), ev.pos().y(),20,20])
-            print("Тута есть обжектс", objecs)
+        # else:
+        #     print(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())," ", str(diff.x())]))
+        #
+        #     objecs = self.itemsAt([ev.pos().x(), ev.pos().y(),20,20])
+        #     print("Тута есть обжектс", objecs)
 
         if ev.buttons() == QtCore.Qt.LeftButton:
             if (ev.modifiers() == QtCore.Qt.ControlModifier):
@@ -53,7 +57,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
                     self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "translate mode"]))
                 # self.translate_object(self.parent().selected_boxes, diff.x())
-                self.translate_object(self.objects_selected, diff.x())
+                self.translate_object(self.current_selected, diff.x())
             elif (ev.modifiers() == QtCore.Qt.ShiftModifier):
 
                 # self.highlight_object(None)
@@ -62,7 +66,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
                 # print(diff.x())
                 # self.scale_object(self.parent().selected_boxes, diff.x())
-                self.scale_object(self.objects_selected, diff.x())
+                self.scale_object(self.current_selected, diff.x())
 
             else:
                 self.orbit(-diff.x(), diff.y())
@@ -80,20 +84,34 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
     def mousePressEvent(self, ev):
 
-        if ev.buttons() == Qt.LeftButton and ev.modifiers() == QtCore.Qt.ShiftModifier:
-            print("режим множественного выделения")
+        if ev.buttons() == Qt.LeftButton:
+            if  ev.modifiers() == QtCore.Qt.ShiftModifier:
+                print("режим множественного выделения")
+                new_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
 
-            new_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
+                for object in new_objects:
+                    if object in self.current_selected:
+                        self.current_selected.discard(object)
+                    else:
+                        self.current_selected.add(object)
 
-            for object in new_objects:
-                self.object_selected.append(object)
+                # self.objects_selected.update(set(new_objects))
+                # print("Итого выделено объектов: ", len(self.current_selected))
+                # self.highlight_object()
 
-            print("Итого выделено объектов: ", len(self.object_selected))
+                # self.update_global_selection()
 
-        elif ev.buttons() == Qt.LeftButton:
-            self.objects_selected = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
+            else:
 
-            print("выделено объектов:", len(self.objects_selected))
+                self.current_selected = set(self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1]))
+                # print("выделено объектов:", len(self.current_selected))
+                # self.highlight_object()
+
+        self.highlight_object()
+                # self.update_global_selection()
+
+
+    def mergeSelection(self, objects_selected):
 
 
     def update_3d_boxes(self):
@@ -113,10 +131,12 @@ class Volumetric_widget_2(gl.GLViewWidget):
                     self.create_3d_cube([x, y], [l, w])
                     print(x, y, l, w)
 
-    def create_3d_cube(self, pos, size):
+    def create_3d_cube(self, pos, size, angle=0):
 
         x, y = pos
         l, w = size
+
+        z = 5
 
         x_top = x + l / 2
         x_bot = x - l / 2
@@ -124,12 +144,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         y_bot = y - w / 2
         z_top = 10
         z_bot = 0
-
-        corners = []
-        for i in [x_top, x_bot]:
-            for j in [y_top, y_bot]:
-                for k in [z_top, z_bot]:
-                    corners.append([i, j, k])
 
         corners = [[x_top, y_bot, z_bot],
                    [x_bot, y_bot, z_bot],
@@ -140,6 +154,19 @@ class Volumetric_widget_2(gl.GLViewWidget):
                    [x_bot, y_top, z_top],
                    [x_top, y_bot, z_top]]
         corners = np.array(corners)
+
+        angle = angle * np.pi / 180
+        Rotational_matrix = np.array([[np.cos(angle), np.sin(angle), 0]
+                                         , [-np.sin(angle), np.cos(angle), 0]
+                                         , [0, 0, 1]])
+
+        corners[:, 0] -= x - l / 2
+        corners[:, 1] -= y - w / 2
+
+        corners = corners.dot(Rotational_matrix)
+
+        corners[:, 0] += x - l / 2
+        corners[:, 1] += y - w / 2
 
         vertexes = np.array([[1, 0, 0],  # 0
                              [0, 0, 0],  # 1
@@ -157,17 +184,37 @@ class Volumetric_widget_2(gl.GLViewWidget):
                           [2, 4, 5], [2, 6, 5],
                           [3, 6, 5], [3, 7, 5]])
 
-        Cube = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(1.0, 0, 0, 0.3), drawEdges=True)
-        self.addItem(Cube)
+        Cube = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(1.0, 1.0, 0, 0.3), drawEdges=True,
+                             drawFaces=False)
+
+        return Cube
 
 
-    def select_objects(self):
-        pass
 
-    def highlight_object(self, object):
+    # def update_global_selection(self):
+    #
+    #     for vol_object in self.current_selected:
+    #         ind = [item["3d_object"] for item in self.parent().objects].index(vol_object)
+    #
+    #         print(vol_object)
+    #         print(self.parent().objects[ind])
+    #
+    #         list_item = self.parent().objects[ind]["listitem"]
+    #
+    #         # self.parent().list_widget.setItemSelected(list_item, select = True)
+    #         list_ind = self.parent().list_widget.row(list_item)
+    #         list_instance = self.parent().list_widget.item(list_ind)
+    #         list_instance.setSelected(True)
+    #         # print("instance", list_instance)
+
+
+    def highlight_object(self):
         for item in self.items:
             if isinstance(item, gl.GLMeshItem):
-                item.opts["colors"] = (0,0,1,0.6)
+                if (item in self.current_selected):
+                    item.opts["edgeColor"] = (0,0,1,0.6)
+                else:
+                    item.opts["edgeColor"] = (1,1,1,1)
         self.update()
 
     def translate_object(self, object_list ,  sign):
@@ -285,7 +332,7 @@ if __name__ == "__main__":
     widg.create_3d_cube((-110, 20), (20, 20))
 
     but_1 = QPushButton("button_1")
-    # but_1.clicked.connect()
+    but_1.clicked.connect(widg.highlight_object)
     but_2 = QPushButton("button_2")
     but_3 = QPushButton("button_3")
 

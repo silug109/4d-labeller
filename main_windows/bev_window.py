@@ -185,10 +185,8 @@ class Bev_Canvas_2(pg.GraphicsView):
 
 
         for roi in rois:
-            # if roi.isMoving:
-            #     print("УГОЛ: ",roi.angle())
 
-            print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
+            # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
             ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
             self.update_object_db(ind)
 

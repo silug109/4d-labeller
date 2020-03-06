@@ -12,6 +12,8 @@ import numpy as np
 
 
 
+
+
 # class ListWidgetMine(QtWidgets.QListWidget):
 #
 #     def __init__(self, *args, **kwargs):
@@ -25,7 +27,7 @@ import numpy as np
 #
 
 import sys
-from PyQt5 import QtGui,QtWidgets
+from PyQt5 import QtGui,QtWidgets, QtCore
 
 
 class_list = ["Car", "Human", "Kamaz", "Moto"]
@@ -33,9 +35,15 @@ class_list = ["Car", "Human", "Kamaz", "Moto"]
 class ListWidg(QtWidgets.QListWidget):
     """модицифированный класс ListWidget с переопределенной логикой mouseDoubleClick"""
 
+    SigSelectionChanged = QtCore.pyqtSignal()
+
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        self.current_selected = []
+
+
 
     def mouseDoubleClickEvent(self, ev: QtGui.QMouseEvent) -> None:
 
@@ -49,6 +57,19 @@ class ListWidg(QtWidgets.QListWidget):
         self.info_widget = Info_object_widget(object)
         # self.info_widget.load_item(item)
         self.info_widget.show()
+
+
+    def mousePressEvent(self, ev: QtGui.QMouseEvent) -> None:
+        super().mousePressEvent(ev)
+
+        if self.current_selected != self.selectedItems():
+            self.current_selected = self.selectedItems()
+            self.SigSelectionChanged.emit()
+        else:
+            self.current_selected = self.selectedItems()
+
+
+
 
 class Info_object_widget(QtWidgets.QWidget):
     """
@@ -75,6 +96,8 @@ class Info_object_widget(QtWidgets.QWidget):
         self.coords = QtWidgets.QLineEdit(self)
         self.coords.setText("10,20,30,40")
         self.widg_layout.addWidget(self.coords)
+
+        self.class_choice = QtWidgets.QComboBox()
 
         self.buttons_layout = QtWidgets.QHBoxLayout()
 
@@ -168,23 +191,23 @@ class QCustomQWidget (QtGui.QWidget):
         # TODO как выкидывать измененный объект из класса, который ни наследуется, ни может возвращать
 
 
-class ObjectLabel(QtGui.QWidget):
-    def __init__(self, parent = None):
-        super().__init__(parent)
-        self.Vlayout = QtGui.QVBoxLayout()
-        self.class_name = QtGui.Qlabel()
-        self.size_label = QtGui.Qlabel()
-        self.Vlayout.addWidget(self.class_name)
-        self.Vlayout.addWidget(self.size_label)
-        self.Hlayout = QtGui.QHBoxLayout()
-        self.iconLabel = QtGui.Qlabel()
-        self.Hlayout.addLayout(self.Vlayout)
-        self.Hlayout.addWidget(self.iconLabel)
-        self.setLayout(self.Hlayout)
-
-    def setObject(self, object):
-        self.class_name.setText(object["class"])
-        self.size_label.setText(str(object["size"]))
+# class ObjectLabel(QtGui.QWidget):
+#     def __init__(self, parent = None):
+#         super().__init__(parent)
+#         self.Vlayout = QtGui.QVBoxLayout()
+#         self.class_name = QtGui.Qlabel()
+#         self.size_label = QtGui.Qlabel()
+#         self.Vlayout.addWidget(self.class_name)
+#         self.Vlayout.addWidget(self.size_label)
+#         self.Hlayout = QtGui.QHBoxLayout()
+#         self.iconLabel = QtGui.Qlabel()
+#         self.Hlayout.addLayout(self.Vlayout)
+#         self.Hlayout.addWidget(self.iconLabel)
+#         self.setLayout(self.Hlayout)
+#
+#     def setObject(self, object):
+#         self.class_name.setText(object["class"])
+#         self.size_label.setText(str(object["size"]))
 
 
 class exampleQMainWindow (QtGui.QMainWindow):
