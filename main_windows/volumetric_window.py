@@ -112,7 +112,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
 
     def mergeSelection(self, objects_selected):
-
+        pass
 
     def update_3d_boxes(self):
 
@@ -184,8 +184,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
                           [2, 4, 5], [2, 6, 5],
                           [3, 6, 5], [3, 7, 5]])
 
-        Cube = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(1.0, 1.0, 0, 0.3), drawEdges=True,
-                             drawFaces=False)
+        Cube = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(0.3, 0.3, 0.7, 0.1), drawEdges=True,
+                             drawFaces=True)
 
         return Cube
 
