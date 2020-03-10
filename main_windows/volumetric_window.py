@@ -7,7 +7,6 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import sys
 import numpy as np
 import pyqtgraph.opengl as gl
-import matplotlib.pyplot as plt
 
 
 class Volumetric_widget_2(gl.GLViewWidget):

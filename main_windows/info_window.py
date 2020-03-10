@@ -1,33 +1,5 @@
-import numpy as np
-from PyQt5 import QtCore, QtGui, QtWidgets
-import sys
-import pyqtgraph as pg
-import pyqtgraph.opengl as gl
-import matplotlib.pyplot as plt
-import numpy.matlib as matlib
-from math import sin, cos, atan2, sqrt
-import random
-# from window_2d import *
-import numpy as np
-
-
-
-
-# class ListWidgetMine(QtWidgets.QListWidget):
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#
-# class CustomListWidgetItem(QListWidgetItem, QLabel):
-#     def __init__(self, parent=None):
-#         QListWidgetItem.__init__(self, parent)
-#         QLabel.__init__(self, parent)
-#
-
 import sys
 from PyQt5 import QtGui,QtWidgets, QtCore
-
 
 class_list = ["Car", "Human", "Kamaz", "Moto"]
 

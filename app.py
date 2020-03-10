@@ -1,9 +1,3 @@
-import numpy as np
-from PyQt5 import QtCore, QtGui, QtWidgets
-import sys
-import pyqtgraph as pg
-import pyqtgraph.opengl as gl
-import matplotlib.pyplot as plt
 import numpy.matlib as matlib
 from math import sin, cos, atan2, sqrt
 import random
