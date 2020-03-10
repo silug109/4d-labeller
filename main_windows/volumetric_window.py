@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 
 
 class Volumetric_widget_2(gl.GLViewWidget):
+
+    SigCreate3dObject = pyqtSignal()
+
     def __init__(self, *args, **kwargs):
 
         self.scale = 1.0
@@ -114,36 +117,74 @@ class Volumetric_widget_2(gl.GLViewWidget):
     def mergeSelection(self, objects_selected):
         pass
 
-    def update_3d_boxes(self):
+    # def update_3d_boxes(self):
+    #
+    #     for item in self.main.items:
+    #         if isinstance(item, gl.GLMeshItem):
+    #             self.main.removeItem(item)
+    #
+    #     list_bb = self.bev_view.addedItems
+    #     if len(list_bb) > 1:
+    #         print("There're some boxes Yo!")
+    #
+    #         for items in list_bb:
+    #             if isinstance(items, pg.RectROI):
+    #                 x, y, l, w = items.pos()[0], items.pos()[1], items.size()[0], items.size()[1]
+    #                 x, y = x + l / 2, y + w / 2
+    #                 self.create_3d_cube([x, y], [l, w])
+    #                 print(x, y, l, w)
 
-        for item in self.main.items:
-            if isinstance(item, gl.GLMeshItem):
-                self.main.removeItem(item)
+    def update3dObject(self):
+        #change
+        pass
 
-        list_bb = self.bev_view.addedItems
-        if len(list_bb) > 1:
-            print("There're some boxes Yo!")
+    def synchronize_3d_object(self, obj_idx):
+        objects = self.parent().objects
+        object = objects[obj_idx]
 
-            for items in list_bb:
-                if isinstance(items, pg.RectROI):
-                    x, y, l, w = items.pos()[0], items.pos()[1], items.size()[0], items.size()[1]
-                    x, y = x + l / 2, y + w / 2
-                    self.create_3d_cube([x, y], [l, w])
-                    print(x, y, l, w)
+        object_3d = object["3d_object"]
+        new_coords = object["coord"]
+
+        # print(new_coords, object_3d)
+
+        meshdata = self.create_meshdata(coords = new_coords)
+        object_3d.setMeshData(**meshdata)
+
+    def create_meshdata(self, coords):
+        x = coords["x"]
+        y = coords["y"]
+        z = coords["z"]
+        length = coords["l"]
+        width = coords["w"]
+        depth = coords["h"]
+        angle = coords["angle"]
+
+        cubegl = self.create_3d_cube([x, y, z], [length, width , depth], angle)
+        new_meshdata = cubegl.opts["meshdata"]
+        meshdata_dict = {"meshdata": new_meshdata}
+        return meshdata_dict
+
+
+
+
 
     def create_3d_cube(self, pos, size, angle=0):
 
-        x, y = pos
-        l, w = size
-
-        z = 5
+        if len(pos) == 2:
+            x, y = pos
+            l, w = size
+            z = 5
+            d = 10
+        else:
+            x,y,z = pos
+            l,w,d = size
 
         x_top = x + l / 2
         x_bot = x - l / 2
         y_top = y + w / 2
         y_bot = y - w / 2
-        z_top = 10
-        z_bot = 0
+        z_top = z + d/2
+        z_bot = z - d/2
 
         corners = [[x_top, y_bot, z_bot],
                    [x_bot, y_bot, z_bot],

@@ -30,6 +30,8 @@ class Bev_Canvas_2(pg.GraphicsView):
     shapeMoved = pyqtSignal()
     drawingPolygon = pyqtSignal(bool)
 
+    SigBevChange = pyqtSignal(int)
+
     CREATE, EDIT = list(range(2))
 
     epsilon = 11.0
@@ -112,19 +114,6 @@ class Bev_Canvas_2(pg.GraphicsView):
     #     self.repaint()
 
 
-    def create_ROI(self):
-        bounding_box = pg.RectROI([10, 10], [20, 20], centered= True, sideScalers=True)
-        bounding_box.addScaleHandle([125,125],[25,25])
-        # bounding_box.addTranslateHandle([0.5,0.5],[0.5,0.5])
-        bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-        # bounding_box.setZValue(20)
-
-        # class_box = self.choose_class_for_box();
-        class_box = "Cat"
-
-        self.bev_view.addItem(bounding_box)
-        return "Success"
-
     def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16):
         '''
         :param frame: (config.size[1], size[2], config.size[3])
@@ -183,14 +172,13 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         rois = [item for item in self.bev_view.addedItems if isinstance(item,pg.RectROI)]
 
-
         for roi in rois:
 
             # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
             ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
             self.update_object_db(ind)
 
-            self.parent().update_3d_boxes()
+            # self.parent().update_3d_boxes()
 
                 # if self.dev_mode == "Main":
                 #     ind =  [item["Bev_object"] for item in self.parent().objects].index(roi)
@@ -204,22 +192,75 @@ class Bev_Canvas_2(pg.GraphicsView):
             #TODO логику синхронизации переписать
 
     def update_object_db(self, object_ind):
+
         object = self.parent().objects[object_ind]
 
         bev_object = object["Bev_object"]
         x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
         x, y = x + l / 2, y + w / 2 #RECT ROI x,y - left bottom points though move it to logical center
-        cubegl_object = self.parent().create_3d_cube([x, y], [l, w], angle)
+        #TODO координаты меняются при поворотах
 
-        coord = {"x": x, "y": y, "z": 5, "l": l, "w": w, "h": 10}
-
+        coord = {"x": x, "y": y, "z": 5, "l": l, "w": w, "h": 10, "angle": angle}
         object["coord"] = coord
-        object["3d_object"] = cubegl_object
         self.parent().objects[object_ind] = object
+
+        # print(object_ind)
+        self.SigBevChange.emit(object_ind)
+
+        # object_3d = object["3d_object"]
+        #
+        # meshdata = self.create_meshdata(x,y, l, w, angle)
+        # object_3d.setMeshData(**meshdata)
+        #
+        # list_object = object["listwidgetitem"]
+        #
+        # list_object.setTextUp(object["id"])
+        # list_object.setTextDown(str(coord))
+
+    def create_meshdata(self, x,y, l, w, angle):
+        cubegl = self.parent().create_3d_cube([x, y], [l, w], angle)
+        new_meshdata = cubegl.opts["meshdata"]
+        meshdata_dict = {"meshdata": new_meshdata}
+        return meshdata_dict
 
     def reset(self):
         for item in self.bev_view.addedItems:
             print(item)
+
+    def create_ROI(self):
+        bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
+        bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+        bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+
+        class_box = "Cat"
+
+        self.bev_view.addItem(bounding_box)
+
+        object_instance = {}
+        object_instance["Bev_object"] = bounding_box
+
+        self.parent().objects.append(object_instance)
+
+        print("ВОТ ЗДЕСЬ ПРОВЕРОЧКА")
+        self.parent().update_db()
+
+        obj_ind = len(self.parent().objects)-1
+
+        self.SigBevChange.emit(obj_ind)
+
+        return bounding_box
+
+
+    def synchronize_roi(self, obj_idx):
+
+        objects = self.parent().objects
+        object = objects[obj_idx]
+
+        roi = object["Bev_object"]
+        new_coords = object["coord"]
+
+        roi.setPos([new_coords["x"], new_coords["y"]])
+        roi.setSize([new_coords["l"],new_coords["w"]])
 
 
 

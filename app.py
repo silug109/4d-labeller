@@ -82,7 +82,6 @@ class mainwindows(QtWidgets.QWidget):
 
         self.selected_boxes = []
         self.selected_objects_idxs = []
-        # self.bev_lid_dict = dict()
 
 
 
@@ -156,12 +155,10 @@ class mainwindows(QtWidgets.QWidget):
 
         self.canvas = Canvas(self)
 
-
         from main_windows.bev_window import Bev_Canvas_2
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main")
-
-        # self.bev_widget.resize(640,640)
-        # self.bev_widget.bev_view.resize(640,640)
+        # self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets)
+        self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets)
 
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
@@ -172,20 +169,17 @@ class mainwindows(QtWidgets.QWidget):
         self.camera = QtWidgets.QPushButton('Load image')
         # self.camera.clicked.connect(self.)
 
-        # from main_windows.info_window import InfoWidget
-        # self.info_box = InfoWidget(self)
-
         self.start = QtWidgets.QPushButton('Start')
-        self.start.clicked.connect(self.printoutboxes)
+        # self.start.clicked.connect(self.printoutboxes)
 
         self.sync = QtWidgets.QPushButton('synchronize')
-        self.sync.clicked.connect(self.update_3d_boxes)
+        # self.sync.clicked.connect(self.update_3d_boxes)
 
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
-        self.create_ROI_but.clicked.connect(self.create_ROI)
+        self.create_ROI_but.clicked.connect(self.bev_widget.create_ROI)
 
         self.create_ROI_2 = QtWidgets.QPushButton('select')
-        self.create_ROI_2.clicked.connect(self.select_item)
+        # self.create_ROI_2.clicked.connect(self.select_item)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -204,10 +198,10 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget = ListWidg(self)
         # self.list_widget = QtWidgets.QListWidget(self)
         # self.list_widget.setSelectionMode( QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.list_widget.SigSelectionChanged.connect(self.SignalListCheck)
+        # self.list_widget.SigSelectionChanged.connect(self.SignalListCheck)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
-        self.delete.clicked.connect(self.delete_item)
+        # self.delete.clicked.connect(self.delete_item)
 
         self.info = QtWidgets.QLabel("Nothing still")
 
@@ -239,7 +233,7 @@ class mainwindows(QtWidgets.QWidget):
 
 
         self.load_radar_poincloud()
-        print(len(self.pointcloud_data))
+        # print(len(self.pointcloud_data))
 
 
     def SignalListCheck(self):
@@ -260,7 +254,8 @@ class mainwindows(QtWidgets.QWidget):
     def Signal3DCheck(self):
         pass
 
-    def SignalBevCheck(self):
+    def SignalBevCheck(self, value):
+        print("returned into main index: ",value)
         pass
 
     def update_selection(self, idxs, source = None):
@@ -279,12 +274,6 @@ class mainwindows(QtWidgets.QWidget):
         # self.update_list_widget(idxs)
         # self.update_3d_boxes(idxs)
         # self.update_bev_boxes(idxs)
-
-
-
-
-
-
 
 
     def change_status(self,text):
@@ -344,94 +333,92 @@ class mainwindows(QtWidgets.QWidget):
         '''
         pass
 
-
     def create_3d_cube(self, pos, size, angle=0):
         return self.threed_vis.create_3d_cube(pos,size,angle)
 
-    def printoutboxes(self):
-        list_bb = self.bev_view.addedItems
-        if len(list_bb) > 1:
-            print("There're some boxes Yo!")
+    # def printoutboxes(self):
+    #     list_bb = self.bev_view.addedItems
+    #     if len(list_bb) > 1:
+    #         print("There're some boxes Yo!")
+    #
+    #         for items in list_bb:
+    #             if isinstance(items,pg.RectROI):
+    #                 print(items.pos()[0], items.pos()[1], items.size()[0], items.size()[1])
 
-            for items in list_bb:
-                if isinstance(items,pg.RectROI):
-                    print(items.pos()[0], items.pos()[1], items.size()[0], items.size()[1])
+    # def update_3d_boxes(self):
+    #
+    #     # for item in self.objects:
+    #     #     if item["3d_object"] not in self.threed_vis.items:
+    #     #         self.threed_vis.addItem(item["3d_object"])
+    #
+    #
+    #     # print("СИНХРОНИЗАЦИЯ")
+    #     list_bb = [item for item in self.threed_vis.items if isinstance(item, gl.GLMeshItem)]
+    #     # print(list_bb)
+    #
+    #     for item in list_bb:
+    #         self.threed_vis.removeItem(item)
+    #
+    #     for item in self.objects:
+    #         self.threed_vis.addItem(item["3d_object"])
+    #
+    #     #
+    #     # # list_bb = self.bev_widget.bev_view.addedItems
+    #     # list_bb = [item[1] for item in self.objects]
+    #     #
+    #     # if len(list_bb) > 0:
+    #     #     print("There're some boxes Yo!")
+    #     #
+    #     #     for items in list_bb:
+    #     #         if isinstance(items, pg.RectROI):
+    #     #             x,y,l,w = items.pos()[0], items.pos()[1], items.size()[0], items.size()[1]
+    #     #             x,y = x+l/2, y+w/2
+    #     #             cube_object = self.create_3d_cube([x,y], [l,w])
+    #     #
+    #     #             self.bev_lid_dict[items] = cube_object
+    #     #             print(x,y,l,w)
 
-    def update_3d_boxes(self):
+    # def update_3d_boxes_selection(self, idxs):
+    #     selected_object = [self.objects[idx]["3d_object"] for idx in idxs]
+    #
+    #     self.threed_vis.current_selected = selected_object
+    #     self.threed_vis.highlight_object()
+    #
+    #     # for item in self.threed_vis.items:
+    #     #     if isinstance(item, gl.GLMeshItem):
+    #     #         if item in selected_object:
+    #     #             item.opts["edgeColor"] = (0,0,1,0.6)
+    #     #         else:
+    #     #             item.opts["edgeColor"] = (1,1,1,1)
+    #     # self.threed_vis.update()
 
-        # for item in self.objects:
-        #     if item["3d_object"] not in self.threed_vis.items:
-        #         self.threed_vis.addItem(item["3d_object"])
-
-
-        # print("СИНХРОНИЗАЦИЯ")
-        list_bb = [item for item in self.threed_vis.items if isinstance(item, gl.GLMeshItem)]
-        # print(list_bb)
-
-        for item in list_bb:
-            self.threed_vis.removeItem(item)
-
-        for item in self.objects:
-            self.threed_vis.addItem(item["3d_object"])
-
-        #
-        # # list_bb = self.bev_widget.bev_view.addedItems
-        # list_bb = [item[1] for item in self.objects]
-        #
-        # if len(list_bb) > 0:
-        #     print("There're some boxes Yo!")
-        #
-        #     for items in list_bb:
-        #         if isinstance(items, pg.RectROI):
-        #             x,y,l,w = items.pos()[0], items.pos()[1], items.size()[0], items.size()[1]
-        #             x,y = x+l/2, y+w/2
-        #             cube_object = self.create_3d_cube([x,y], [l,w])
-        #
-        #             self.bev_lid_dict[items] = cube_object
-        #             print(x,y,l,w)
-
-    def update_3d_boxes_selection(self, idxs):
-        selected_object = [self.objects[idx]["3d_object"] for idx in idxs]
-
-        self.threed_vis.current_selected = selected_object
-        self.threed_vis.highlight_object()
-
-        # for item in self.threed_vis.items:
-        #     if isinstance(item, gl.GLMeshItem):
-        #         if item in selected_object:
-        #             item.opts["edgeColor"] = (0,0,1,0.6)
-        #         else:
-        #             item.opts["edgeColor"] = (1,1,1,1)
-        # self.threed_vis.update()
-
-    def create_ROI(self):
-
-        bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
-        bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
-        bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-
-        # class_box = self.choose_class_for_box();
-        class_box = "Cat"
-
-        # self.bev_view.addItem(bounding_box)
-
-        self.bev_widget.bev_view.addItem(bounding_box)
-
-        object_instance = {}
-        object_instance["Bev_object"] = bounding_box
-
-        self.objects.append(object_instance)
-
-        self.update_db()
-
-        self.update_3d_boxes()
-        self.update_list_widget()
-
-        # self.objects.append((class_box, bounding_box))
-
-        # self.list_widget.addItem("Box" + str(len(self.objects)))
-
-        return bounding_box
+    # def create_ROI(self):
+    #
+    #     bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
+    #     bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+    #     bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+    #
+    #     # class_box = self.choose_class_for_box();
+    #     class_box = "Cat"
+    #
+    #     # self.bev_view.addItem(bounding_box)
+    #
+    #     self.bev_widget.bev_view.addItem(bounding_box)
+    #
+    #     object_instance = {}
+    #     object_instance["Bev_object"] = bounding_box
+    #
+    #     self.objects.append(object_instance)
+    #
+    #     self.update_db()
+    #     # self.update_3d_boxes()
+    #     # self.update_list_widget()
+    #
+    #     # self.objects.append((class_box, bounding_box))
+    #
+    #     # self.list_widget.addItem("Box" + str(len(self.objects)))
+    #
+    #     return bounding_box
 
     def update_one_object_db(self, object_ind):
         pass
@@ -443,82 +430,96 @@ class mainwindows(QtWidgets.QWidget):
             x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
             x, y = x + l / 2, y + w / 2
             cubegl_object = self.threed_vis.create_3d_cube([x, y], [l, w], angle)
+            self.threed_vis.addItem(cubegl_object)
 
-            coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10}
+            coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10, "angle": angle}
             class_instance = "Cat"
             id_instance = "some_id"
 
-            myListWidget = QCustomQWidget()
-            myListWidget.setTextUp(class_instance)
-            myListWidget.setTextDown(str(coord))
+            myListWidgetObject = QCustomQWidget()
+            myListWidgetObject.setTextUp(id_instance)
+            myListWidgetObject.setTextDown(str(coord))
 
-            # list_object =
-            # list_object = QtWidgets.QListWidgetItem("Box "+ str(ind))
-            # list_object = "Box "+ str(ind)
+            ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
+            ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
+            self.list_widget.addItem(ListWidgetItem)
+            self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
 
             item["coord"] = coord
             item["class"] = class_instance
             item["3d_object"] = cubegl_object
             item["id"] = id_instance
             # item["listitem"] = list_object
-            item["listwidgetitem"] = myListWidget
+            item["listwidgetitem"] = myListWidgetObject
+            item["listitem"] = ListWidgetItem
             item["IsSelected"] = False
 
+            self.objects[ind] = item
 
-        # print(self.objects)
+            print("INIT: ",self.objects[ind])
 
-    def update_list_widget(self):
+    def update_all_widgets(self):
+        pass
 
-        self.list_widget.clear()
 
-        for ind,item in enumerate(self.objects):
-            MyListWidgetObject = item["listwidgetitem"]
-            ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
-            ListWidgetItem.setSizeHint(MyListWidgetObject.sizeHint())
-            self.list_widget.addItem(ListWidgetItem)
-            self.list_widget.setItemWidget(ListWidgetItem, MyListWidgetObject)
-            item["listitem"] = ListWidgetItem
+    def synchronize_all_widgets(self, obj_idx):
+        # print(obj_idx)
+        self.threed_vis.synchronize_3d_object(obj_idx)
+        # self.bev_widget.synchronize_roi(obj_idx)
+        self.list_widget.synchronizeListItem(obj_idx)
+        # print(self.objects[obj_idx])
+        pass
 
-    def update_list_widget_selection(self):
-        for idx in self.selected_objects_idxs:
-            list_item = self.objects[idx]["listitem"]
-            list_item.setSelected(True)
-            list_ind = self.list_widget.row(list_item)
-            list_instance = self.list_widget.item(list_ind)
-            list_instance.setSelected(True)
+    # def update_list_widget(self):
+    #     self.list_widget.clear()
+    #     for ind,item in enumerate(self.objects):
+    #         MyListWidgetObject = item["listwidgetitem"]
+    #         ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
+    #         ListWidgetItem.setSizeHint(MyListWidgetObject.sizeHint())
+    #         self.list_widget.addItem(ListWidgetItem)
+    #         self.list_widget.setItemWidget(ListWidgetItem, MyListWidgetObject)
+    #         item["listitem"] = ListWidgetItem
 
-    def delete_item(self):
-
-        for list_item in self.list_widget.selectedItems():
-            self.list_widget.takeItem(self.list_widget.row(list_item))
-
-            # print(list_item)
-            # print(self.objects)
-
-            # print([item["listitem"] for item in self.objects], list_item)
-            object_ind = [item["listitem"] for item in self.objects].index(list_item)
-
-            object_2_del = self.objects.pop(object_ind)
-
-            # print(object_2_del["3d_object"])
-            # print(self.threed_vis.items[object_ind[0]])
-
-            # print(object_2_del["Bev_object"])
-            # print(self.bev_widget.bev_view.addedItems[object_ind[0]])
-
-            # self.threed_vis.items.pop(object_ind)
-            self.bev_widget.bev_view.removeItem(object_2_del["Bev_object"])
-
-            self.threed_vis.removeItem(object_2_del["3d_object"])
-
-    def select_item(self):
-
-        self.selected_boxes = []
-
-        for list_item in self.list_widget.selectedItems():
-            object_tuple = self.objects[self.list_widget.row(list_item)]
-
-            self.selected_boxes.append(object_tuple["3d_object"])
+    # def update_list_widget_selection(self):
+    #     for idx in self.selected_objects_idxs:
+    #         list_item = self.objects[idx]["listitem"]
+    #         list_item.setSelected(True)
+    #         list_ind = self.list_widget.row(list_item)
+    #         list_instance = self.list_widget.item(list_ind)
+    #         list_instance.setSelected(True)
+    #
+    # def delete_item(self):
+    #
+    #     for list_item in self.list_widget.selectedItems():
+    #         self.list_widget.takeItem(self.list_widget.row(list_item))
+    #
+    #         # print(list_item)
+    #         # print(self.objects)
+    #
+    #         # print([item["listitem"] for item in self.objects], list_item)
+    #         object_ind = [item["listitem"] for item in self.objects].index(list_item)
+    #
+    #         object_2_del = self.objects.pop(object_ind)
+    #
+    #         # print(object_2_del["3d_object"])
+    #         # print(self.threed_vis.items[object_ind[0]])
+    #
+    #         # print(object_2_del["Bev_object"])
+    #         # print(self.bev_widget.bev_view.addedItems[object_ind[0]])
+    #
+    #         # self.threed_vis.items.pop(object_ind)
+    #         self.bev_widget.bev_view.removeItem(object_2_del["Bev_object"])
+    #
+    #         self.threed_vis.removeItem(object_2_del["3d_object"])
+    #
+    # def select_item(self):
+    #
+    #     self.selected_boxes = []
+    #
+    #     for list_item in self.list_widget.selectedItems():
+    #         object_tuple = self.objects[self.list_widget.row(list_item)]
+    #
+    #         self.selected_boxes.append(object_tuple["3d_object"])
 
 
 if __name__ == '__main__':

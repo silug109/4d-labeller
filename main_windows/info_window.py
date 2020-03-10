@@ -47,22 +47,23 @@ class ListWidg(QtWidgets.QListWidget):
     def mouseDoubleClickEvent(self, ev: QtGui.QMouseEvent) -> None:
 
         super().mouseDoubleClickEvent(ev)
+
         self.item = self.itemAt(ev.x(),ev.y())
         print(self.item)
         print("DOUBLE CLICK YO")
 
-        self.object = self.itemWidget(self.item)
+        self.WidgetItem = self.itemWidget(self.item)
+        self.obj_idx = [item["listwidgetitem"] for item in self.parent().objects].index(self.WidgetItem)
+        self.object = self.parent().objects[self.obj_idx]
 
-        self.info_widget = Info_object_widget(item = self.object)
+        self.info_widget = Info_object_widget(coords = self.object["coord"])
         self.info_widget.SigCloseWidget.connect(self.updateItem)
-        # self.info_widget.close.connect(self.print_close)
         # self.info_widget.load_item(item)
         self.info_widget.show()
 
 
     def mousePressEvent(self, ev: QtGui.QMouseEvent) -> None:
         super().mousePressEvent(ev)
-
         if self.current_selected != self.selectedItems():
             self.current_selected = self.selectedItems()
             self.SigSelectionChanged.emit()
@@ -71,17 +72,31 @@ class ListWidg(QtWidgets.QListWidget):
 
     def updateItem(self):
         self.new_object = self.info_widget.get_object()
+
+        print("Old: ",self.object["coord"])
+        self.object["coord"] = self.new_object[1]
+        self.object["id"] = self.new_object[0]
+        print("New: ", self.object["coord"])
+
+        # self.parent().synchronize_all_widgets(self.obj_idx)
+
         # self.object.class_combo = self.new_object.class_combo
-        self.object.setTextUp(self.new_object[0])
-        self.object.setTextDown(self.new_object[1])
+        self.WidgetItem.setTextUp(self.new_object[0])
+        self.WidgetItem.setTextDown(str(self.new_object[1]))
 
-        print(self.new_object[2])
+    def synchronizeListItem(self, obj_idx):
+        objects = self.parent().objects
+        object = objects[obj_idx]
 
+        print(object)
 
+        WidgetItem = object["listwidgetitem"]
+        new_coords = object["coord"]
 
+        # print(obj_idx, new_coords)
 
-
-
+        WidgetItem.setTextDown(str(new_coords))
+        WidgetItem.setTextUp(object["id"])
 
 
 
@@ -95,17 +110,15 @@ class Info_object_widget(QtWidgets.QWidget):
     """
     SigCloseWidget = QtCore.pyqtSignal()
 
-    def __init__(self, item = None, *args, **kwargs):
+    def __init__(self, coords = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.name_label = QtWidgets.QLabel("МАШИНА, АГА", self)
-        # self.class_label = QtWidgets.QLabel("Не МАШИНА, АГА", self)
 
         self.widg_layout = QtWidgets.QVBoxLayout()
 
-        print(item.textUpQLabel.text())
-        print(item.textDownQLabel.text())
-        print(item.class_combo.itemText(item.class_combo.currentIndex()))
-        # print(self.item.class_combo.items)
+        # coords = kwargs.get("coords", None)
+        if coords == None:
+            coords = {"x": 10, "y": 10, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 10}
+
 
         self.name = QtWidgets.QLineEdit(self)
         self.name.setText("Да мне все равно на твои тачки")
@@ -115,63 +128,60 @@ class Info_object_widget(QtWidgets.QWidget):
         self.x_coord_label = QtWidgets.QLabel(self, text= "x:")
         self.x_layout.addWidget(self.x_coord_label)
         self.x_coord = QtWidgets.QLineEdit(self)
-        self.x_coord.setText("10")
+        self.x_coord.setText(str(coords["x"]))
         self.x_layout.addWidget(self.x_coord)
         self.widg_layout.addLayout(self.x_layout)
-        # self.widg_layout.addWidget(self.x_coord)
 
         self.y_layout = QtWidgets.QHBoxLayout()
         self.y_coord_label = QtWidgets.QLabel(self, text="y:")
         self.y_layout.addWidget(self.y_coord_label)
         self.y_coord = QtWidgets.QLineEdit(self)
-        self.y_coord.setText("10")
+        self.y_coord.setText(str(coords["y"]))
         self.y_layout.addWidget(self.y_coord)
         self.widg_layout.addLayout(self.y_layout)
-        # self.widg_layout.addWidget(self.y_coord)
 
         self.z_layout = QtWidgets.QHBoxLayout()
         self.z_coord_label = QtWidgets.QLabel(self, text="z:")
         self.z_layout.addWidget(self.z_coord_label)
         self.z_coord = QtWidgets.QLineEdit(self)
-        self.z_coord.setText("10")
+        self.z_coord.setText(str(coords["z"]))
         self.z_layout.addWidget(self.z_coord)
         self.widg_layout.addLayout(self.z_layout)
-        # self.widg_layout.addWidget(self.z_coord)
 
         self.length_layout = QtWidgets.QHBoxLayout()
         self.length_label = QtWidgets.QLabel(self, text="length:")
         self.length_layout.addWidget(self.length_label)
         self.length_box = QtWidgets.QLineEdit(self)
-        self.length_box.setText("10")
+        self.length_box.setText(str(coords["l"]))
         self.length_layout.addWidget(self.length_box)
         self.widg_layout.addLayout(self.length_layout)
-        # self.widg_layout.addWidget(self.length_box)
 
         self.width_layout = QtWidgets.QHBoxLayout()
         self.width_label = QtWidgets.QLabel(self, text="width:")
         self.width_layout.addWidget(self.width_label)
         self.width_box = QtWidgets.QLineEdit(self)
-        self.width_box.setText("10")
+        self.width_box.setText(str(coords["w"]))
         self.width_layout.addWidget(self.width_box)
         self.widg_layout.addLayout(self.width_layout)
-        # self.widg_layout.addWidget(self.width_box)
 
         self.depth_layout = QtWidgets.QHBoxLayout()
         self.depth_label = QtWidgets.QLabel(self, text="depth:")
         self.depth_layout.addWidget(self.depth_label)
         self.depth_box = QtWidgets.QLineEdit(self)
-        self.depth_box.setText("10")
+        self.depth_box.setText(str(coords["h"]))
         self.depth_layout.addWidget(self.depth_box)
         self.widg_layout.addLayout(self.depth_layout)
-        # self.widg_layout.addWidget(self.depth_box)
 
         self.angle_layout = QtWidgets.QHBoxLayout()
         self.angle_label = QtWidgets.QLabel(self, text="angle:")
         self.angle_layout.addWidget(self.angle_label)
         self.angle_box = QtWidgets.QLineEdit(self)
-        self.angle_box.setText("10")
+        self.angle_box.setText(str(coords["angle"]))
         self.angle_layout.addWidget(self.angle_box)
         self.widg_layout.addLayout(self.angle_layout)
+
+        self.additional_info_label = QtWidgets.QLabel(parent = self, text =  "Additional info")
+        self.widg_layout.addWidget(self.additional_info_label)
 
         self.additional_info = QtWidgets.QLineEdit(self)
         self.additional_info.setText("")
@@ -182,7 +192,7 @@ class Info_object_widget(QtWidgets.QWidget):
         # # for ind in range(self.item.class_combo.count()):
         # #     self.class_choice.addItem(self.item.class_combo.itemText(ind))
         # self.widg_layout.addWidget(self.class_choice)
-        #TODO combobox disappear when IngoWidget initilized
+        #TODO combobox disappear when InfoWidget initilized
 
         self.buttons_layout = QtWidgets.QHBoxLayout()
 
@@ -193,19 +203,9 @@ class Info_object_widget(QtWidgets.QWidget):
         self.cancel_but = QtWidgets.QPushButton("cancel",self)
         self.cancel_but.clicked.connect(self.close)
         self.buttons_layout.addWidget(self.cancel_but)
-
-        self.load_but = QtWidgets.QPushButton("load", self)
-        self.load_but.clicked.connect(self.load_item)
-        self.buttons_layout.addWidget(self.load_but)
-
         self.widg_layout.addLayout(self.buttons_layout)
-
         self.setLayout(self.widg_layout)
 
-
-    def load_item(self):
-        # print(self.item.textUpQLabel.text())
-        pass
 
     def save_changes(self):
         self.SigCloseWidget.emit()
@@ -222,24 +222,26 @@ class Info_object_widget(QtWidgets.QWidget):
         depth = self.depth_box.text()
         angle = self.angle_box.text()
 
-        combo = self.class_choice
-        print(combo)
-        class_name = self.class_choice.itemText(self.class_choice.currentIndex())
-        class_name_idx = self.class_choice.currentIndex()
+        combo = "Car"
+        # combo = self.class_choice
+        # print(combo)
+        # class_name = self.class_choice.itemText(self.class_choice.currentIndex())
+        # class_name_idx = self.class_choice.current
 
-        # obj_inst = QCustomQWidget()
-        # obj_inst.setTextUp(name)
-        # obj_inst.setTextDown(''.join([x,y,z,length,width,depth]))
-        # obj_inst.class_combo = self.item.class_combo
-        # obj_inst.class_combo.activated(class_name_idx)
 
-        return name, ''.join([x,y,z,length,width,depth,angle]), combo
-    #Todo update return and parsing of objects back to listwidget
+        return name, {"x": x, "y": y, "z": 5, "l": length, "w": width, "h": depth, "angle": angle}, combo
 
 
 
 
 class QCustomQWidget (QtGui.QWidget):
+    '''
+    ListWidgetItem - отображает краткую информацию об объекте разметки.
+    Combobox - выбор класса.
+    Id - айди объекта
+    Coord - вывод координат объектов
+    '''
+
     def __init__ (self, parent = None):
         super(QCustomQWidget, self).__init__(parent)
         self.textQVBoxLayout = QtGui.QVBoxLayout()
@@ -251,16 +253,6 @@ class QCustomQWidget (QtGui.QWidget):
 
         self.class_combo = QtWidgets.QComboBox()
         self.allQHBoxLayout.addWidget(self.class_combo)
-
-        # self.class_dialog = QtWidgets.QInputDialog()
-        # self.allQHBoxLayout.addWidget(self.class_dialog)
-        #
-        # items = ("C", "C++", "Java", "Python")
-        #
-        # item, ok = self.class_dialog.getItem(self, "select input dialog",
-        #                                 "list of languages", items, 0, False)
-
-        # TODO продумать поля этого объекта
 
         self.allQHBoxLayout.addLayout(self.textQVBoxLayout, 1)
         self.setLayout(self.allQHBoxLayout)
@@ -274,8 +266,6 @@ class QCustomQWidget (QtGui.QWidget):
     def print_if_change(self):
         print(self," CHANGED its class to ", self.class_combo.currentText())
 
-
-
     def setTextUp (self, text):
         self.textUpQLabel.setText(text)
     def setTextDown (self, text):
@@ -284,26 +274,6 @@ class QCustomQWidget (QtGui.QWidget):
         self.class_combo.insertItems(1,class_list)
 
         # TODO как выкидывать измененный объект из класса, который ни наследуется, ни может возвращать
-
-
-# class ObjectLabel(QtGui.QWidget):
-#     def __init__(self, parent = None):
-#         super().__init__(parent)
-#         self.Vlayout = QtGui.QVBoxLayout()
-#         self.class_name = QtGui.Qlabel()
-#         self.size_label = QtGui.Qlabel()
-#         self.Vlayout.addWidget(self.class_name)
-#         self.Vlayout.addWidget(self.size_label)
-#         self.Hlayout = QtGui.QHBoxLayout()
-#         self.iconLabel = QtGui.Qlabel()
-#         self.Hlayout.addLayout(self.Vlayout)
-#         self.Hlayout.addWidget(self.iconLabel)
-#         self.setLayout(self.Hlayout)
-#
-#     def setObject(self, object):
-#         self.class_name.setText(object["class"])
-#         self.size_label.setText(str(object["size"]))
-
 
 class exampleQMainWindow (QtGui.QMainWindow):
     def __init__ (self):
