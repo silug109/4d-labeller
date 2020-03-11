@@ -12,6 +12,7 @@ import pyqtgraph.opengl as gl
 class Volumetric_widget_2(gl.GLViewWidget):
 
     SigCreate3dObject = pyqtSignal()
+    SigSelect3dObject = pyqtSignal(str)
 
     def __init__(self, *args, **kwargs):
 
@@ -32,14 +33,12 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.object_selected_signal = pyqtSignal()
         self.object_changed_signal = pyqtSignal()
 
-        self.current_selected = None
+        self.current_selected = []
 
 
     def mouseMoveEvent(self, ev):
 
         # super().mouseMoveEvent(ev)
-
-
 
         diff = ev.pos() - self.mousePos
         self.mousePos = ev.pos()
@@ -48,26 +47,18 @@ class Volumetric_widget_2(gl.GLViewWidget):
             self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))
         # else:
         #     print(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())," ", str(diff.x())]))
-        #
-        #     objecs = self.itemsAt([ev.pos().x(), ev.pos().y(),20,20])
-        #     print("Тута есть обжектс", objecs)
 
         if ev.buttons() == QtCore.Qt.LeftButton:
             if (ev.modifiers() == QtCore.Qt.ControlModifier):
-
                 if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
                     self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "translate mode"]))
                 # self.translate_object(self.parent().selected_boxes, diff.x())
                 self.translate_object(self.current_selected, diff.x())
             elif (ev.modifiers() == QtCore.Qt.ShiftModifier):
-
-                # self.highlight_object(None)
                 if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
                     self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
-                # print(diff.x())
-                # self.scale_object(self.parent().selected_boxes, diff.x())
                 self.scale_object(self.current_selected, diff.x())
 
             else:
@@ -98,40 +89,17 @@ class Volumetric_widget_2(gl.GLViewWidget):
                         self.current_selected.add(object)
 
                 # self.objects_selected.update(set(new_objects))
-                # print("Итого выделено объектов: ", len(self.current_selected))
                 # self.highlight_object()
 
-                # self.update_global_selection()
 
             else:
 
                 self.current_selected = set(self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1]))
-                # print("выделено объектов:", len(self.current_selected))
                 # self.highlight_object()
 
+        self.SigSelect3dObject.emit("3d")
         self.highlight_object()
                 # self.update_global_selection()
-
-
-    def mergeSelection(self, objects_selected):
-        pass
-
-    # def update_3d_boxes(self):
-    #
-    #     for item in self.main.items:
-    #         if isinstance(item, gl.GLMeshItem):
-    #             self.main.removeItem(item)
-    #
-    #     list_bb = self.bev_view.addedItems
-    #     if len(list_bb) > 1:
-    #         print("There're some boxes Yo!")
-    #
-    #         for items in list_bb:
-    #             if isinstance(items, pg.RectROI):
-    #                 x, y, l, w = items.pos()[0], items.pos()[1], items.size()[0], items.size()[1]
-    #                 x, y = x + l / 2, y + w / 2
-    #                 self.create_3d_cube([x, y], [l, w])
-    #                 print(x, y, l, w)
 
     def update3dObject(self):
         #change
@@ -143,8 +111,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         object_3d = object["3d_object"]
         new_coords = object["coord"]
-
-        # print(new_coords, object_3d)
 
         meshdata = self.create_meshdata(coords = new_coords)
         object_3d.setMeshData(**meshdata)
@@ -162,10 +128,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         new_meshdata = cubegl.opts["meshdata"]
         meshdata_dict = {"meshdata": new_meshdata}
         return meshdata_dict
-
-
-
-
 
     def create_3d_cube(self, pos, size, angle=0):
 
@@ -228,25 +190,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
                              drawFaces=True)
 
         return Cube
-
-
-
-    # def update_global_selection(self):
-    #
-    #     for vol_object in self.current_selected:
-    #         ind = [item["3d_object"] for item in self.parent().objects].index(vol_object)
-    #
-    #         print(vol_object)
-    #         print(self.parent().objects[ind])
-    #
-    #         list_item = self.parent().objects[ind]["listitem"]
-    #
-    #         # self.parent().list_widget.setItemSelected(list_item, select = True)
-    #         list_ind = self.parent().list_widget.row(list_item)
-    #         list_instance = self.parent().list_widget.item(list_ind)
-    #         list_instance.setSelected(True)
-    #         # print("instance", list_instance)
-
 
     def highlight_object(self):
         for item in self.items:

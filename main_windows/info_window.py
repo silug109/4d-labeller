@@ -1,17 +1,32 @@
+import numpy as np
+from PyQt5 import QtCore, QtGui, QtWidgets
+import sys
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+import matplotlib.pyplot as plt
+import numpy.matlib as matlib
+from math import sin, cos, atan2, sqrt
+import random
+# from window_2d import *
+import numpy as np
+
+
+
 import sys
 from PyQt5 import QtGui,QtWidgets, QtCore
+from PyQt5.QtGui import *
 
 class_list = ["Car", "Human", "Kamaz", "Moto"]
 
 class ListWidg(QtWidgets.QListWidget):
     """модицифированный класс ListWidget с переопределенной логикой mouseDoubleClick"""
 
-    SigSelectionChanged = QtCore.pyqtSignal()
+    SigSelectionChanged = QtCore.pyqtSignal(str)
+    SigObjectChanged = QtCore.pyqtSignal(int)
 
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-
         self.current_selected = []
 
 
@@ -20,31 +35,33 @@ class ListWidg(QtWidgets.QListWidget):
 
         super().mouseDoubleClickEvent(ev)
 
-        self.item = self.itemAt(ev.x(),ev.y())
-        print(self.item)
+        self.item_chosen = self.itemAt(ev.x(),ev.y())
+        print(self.item_chosen)
         print("DOUBLE CLICK YO")
 
-        self.WidgetItem = self.itemWidget(self.item)
+        self.WidgetItem = self.itemWidget(self.item_chosen)
         self.obj_idx = [item["listwidgetitem"] for item in self.parent().objects].index(self.WidgetItem)
         self.object = self.parent().objects[self.obj_idx]
 
         self.info_widget = Info_object_widget(coords = self.object["coord"])
         self.info_widget.SigCloseWidget.connect(self.updateItem)
-        # self.info_widget.load_item(item)
         self.info_widget.show()
-
 
     def mousePressEvent(self, ev: QtGui.QMouseEvent) -> None:
         super().mousePressEvent(ev)
+
+        # print("previous: ", self.current_selected)
+        # print("now selected: ", self.selectedItems())
+        # print("decision of comparison", self.current_selected != self.selectedItems() )
+
         if self.current_selected != self.selectedItems():
             self.current_selected = self.selectedItems()
-            self.SigSelectionChanged.emit()
-        else:
-            self.current_selected = self.selectedItems()
+            self.SigSelectionChanged.emit("list")
+        # else:
+        #     self.current_selected = self.selectedItems()
 
     def updateItem(self):
         self.new_object = self.info_widget.get_object()
-
         print("Old: ",self.object["coord"])
         self.object["coord"] = self.new_object[1]
         self.object["id"] = self.new_object[0]
@@ -55,21 +72,39 @@ class ListWidg(QtWidgets.QListWidget):
         # self.object.class_combo = self.new_object.class_combo
         self.WidgetItem.setTextUp(self.new_object[0])
         self.WidgetItem.setTextDown(str(self.new_object[1]))
+        self.SigObjectChanged.emit(self.obj_idx)
 
     def synchronizeListItem(self, obj_idx):
         objects = self.parent().objects
         object = objects[obj_idx]
 
-        print(object)
-
         WidgetItem = object["listwidgetitem"]
         new_coords = object["coord"]
-
-        # print(obj_idx, new_coords)
 
         WidgetItem.setTextDown(str(new_coords))
         WidgetItem.setTextUp(object["id"])
 
+    def update_selection(self):
+        for list_row in range(self.count()):
+            print("list row: ", list_row)
+
+            list_item = self.item(list_row)
+
+            print("list item: ", list_item)
+
+            if list_item in self.current_selected:
+                list_item.setSelected(True)
+            else:
+                list_item.setSelected(False)
+
+            # list_ind = self.row(list_item)
+            # list_instance = self.item(list_ind)
+            # list_instance.setSelected(True)
+
+
+
+
+#TODO Как-то пробросить SigObjectChanged от изменения combobox  внутрь ListWidget
 
 
 class Info_object_widget(QtWidgets.QWidget):
@@ -90,7 +125,6 @@ class Info_object_widget(QtWidgets.QWidget):
         # coords = kwargs.get("coords", None)
         if coords == None:
             coords = {"x": 10, "y": 10, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 10}
-
 
         self.name = QtWidgets.QLineEdit(self)
         self.name.setText("Да мне все равно на твои тачки")
@@ -186,13 +220,13 @@ class Info_object_widget(QtWidgets.QWidget):
     def get_object(self):
 
         name = self.name.text()
-        x = self.x_coord.text()
-        y = self.y_coord.text()
-        z = self.z_coord.text()
-        length = self.length_box.text()
-        width = self.width_box.text()
-        depth = self.depth_box.text()
-        angle = self.angle_box.text()
+        x = float(self.x_coord.text())
+        y = float(self.y_coord.text())
+        z = float(self.z_coord.text())
+        length = float(self.length_box.text())
+        width =  float(self.width_box.text())
+        depth =  float(self.depth_box.text())
+        angle =  float(self.angle_box.text())
 
         combo = "Car"
         # combo = self.class_choice
@@ -204,15 +238,15 @@ class Info_object_widget(QtWidgets.QWidget):
         return name, {"x": x, "y": y, "z": 5, "l": length, "w": width, "h": depth, "angle": angle}, combo
 
 
-
-
-class QCustomQWidget (QtGui.QWidget):
+class QCustomQWidget(QtWidgets.QWidget):
     '''
     ListWidgetItem - отображает краткую информацию об объекте разметки.
     Combobox - выбор класса.
     Id - айди объекта
     Coord - вывод координат объектов
     '''
+
+
 
     def __init__ (self, parent = None):
         super(QCustomQWidget, self).__init__(parent)
@@ -255,19 +289,14 @@ class exampleQMainWindow (QtGui.QMainWindow):
         self.myQListWidget = ListWidg(self)
         # self.myQListWidget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         for index, name, icon in [ ('No.1', 'Meyoko', 'icon.png'), ('No.2', 'Nyaruko', 'icon.png'), ('No.3', 'Louise', 'icon.png')]:
-            # Create QCustomQWidget
             myQCustomQWidget = QCustomQWidget()
             myQCustomQWidget.setTextUp(index)
             myQCustomQWidget.setTextDown(name)
-            # myQCustomQWidget.setIcon(icon)
             myQListWidgetItem = QtWidgets.QListWidgetItem(self.myQListWidget)
             myQListWidgetItem.setSizeHint(myQCustomQWidget.sizeHint())
             # Add QListWidgetItem into QListWidget
             self.myQListWidget.addItem(myQListWidgetItem)
             self.myQListWidget.setItemWidget(myQListWidgetItem, myQCustomQWidget)
-            # print(myQListWidgetItem)
-            # print(myQListWidgetItem.ItemWidget)
-            # print(self.myQListWidget.itemWidget(myQListWidgetItem))
 
             self.setCentralWidget(self.myQListWidget)
 

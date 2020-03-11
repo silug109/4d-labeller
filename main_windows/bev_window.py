@@ -174,9 +174,11 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         for roi in rois:
 
+            # print("handles states:",any([handle['item'].isMoving for handle in roi.handles])) #roi.handles
+            if roi.isMoving or any([handle['item'].isMoving for handle in roi.handles]):
             # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
-            ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
-            self.update_object_db(ind)
+                ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
+                self.update_object_db(ind)
 
             # self.parent().update_3d_boxes()
 
@@ -204,7 +206,6 @@ class Bev_Canvas_2(pg.GraphicsView):
         object["coord"] = coord
         self.parent().objects[object_ind] = object
 
-        # print(object_ind)
         self.SigBevChange.emit(object_ind)
 
         # object_3d = object["3d_object"]
@@ -228,6 +229,7 @@ class Bev_Canvas_2(pg.GraphicsView):
             print(item)
 
     def create_ROI(self):
+
         bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
         bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
         bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
@@ -259,7 +261,8 @@ class Bev_Canvas_2(pg.GraphicsView):
         roi = object["Bev_object"]
         new_coords = object["coord"]
 
-        roi.setPos([new_coords["x"], new_coords["y"]])
+        roi.setAngle(new_coords["angle"])
+        roi.setPos([new_coords["x"]-new_coords["l"]/2, new_coords["y"] - new_coords["w"]/2])
         roi.setSize([new_coords["l"],new_coords["w"]])
 
 
