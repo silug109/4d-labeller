@@ -10,6 +10,8 @@ from main_windows.info_window import *
 from main_windows.bev_window import Bev_Canvas_2
 from main_windows.volumetric_window import Volumetric_widget_2
 
+from PyQt5.QtGui import QPixmap
+
 
 def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elevation_max=16):
     '''
@@ -144,8 +146,6 @@ class mainwindows(QtWidgets.QWidget):
 
 
         self.threed_vis = Volumetric_widget_2(self)
-        # self.threed_vis.setMouseTracking(True)
-        # self.threed_vis.main.resize(640,640)
         self.threed_vis.resize(640,640)
 
         self.canvas = Canvas(self)
@@ -191,9 +191,10 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget = ListWidg(self)
         self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
+        self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
-        # self.delete.clicked.connect(self.delete_item)
+        self.delete.clicked.connect(self.delete_selected_items)
 
         self.info = QtWidgets.QLabel("Nothing still")
         # from main_windows.info_window import InfoWidget
@@ -222,30 +223,15 @@ class mainwindows(QtWidgets.QWidget):
 
         self.load_radar_poincloud()
 
+        self.canvas.mode = self.canvas.CREATE
 
-    # def SignalListCheck(self):
-    #     print("Update in list widget")
-    #
-    #     SelectedListItems = self.list_widget.current_selected
-    #     # print("In main: ",len(SelectedListItems))
-    #
-    #     selected_idxs = []
-    #     for ListItem in SelectedListItems:
-    #         idx = [item["listitem"] for item in self.objects].index(ListItem)
-    #         selected_idxs.append(idx)
-    #
-    #     print(selected_idxs)
-    #
-    #     self.update_selection(selected_idxs, source = "ListWidget")
-    #
-    # def Signal3DCheck(self):
-    #     pass
-    #
-    # def SignalBevCheck(self, value):
-    #     print("returned into main index: ",value)
-    #     pass
+        image_pixmap = QPixmap('./data/0000000000.png')
+        image_pixmap_resized = image_pixmap.scaled(640,480,QtCore.Qt.KeepAspectRatio)
+        self.canvas.loadPixmap(image_pixmap_resized)
 
     def update_selection(self, source = None):
+
+        #Todo Traceback (most recent call last): File "/home/cognitive-comp/Рабочий стол/things2watch/PYQT_experiments/app.py", line 247, in update_selection idx_selected = [item["3d_object"] for item in self.objects ].index(obj_3d) ValueError: <pyqtgraph.opengl.items.GLGridItem.GLGridItem object at 0x7f65f3d50828> is not in list
 
         print("ПРОИЗОШОЛ СЕЛЕКТ")
 
@@ -414,6 +400,37 @@ class mainwindows(QtWidgets.QWidget):
 
         print("INIT: ",self.objects[ind])
 
+    def delete_objects_from_db(self, value):
+
+        # parser of idx
+        # idxs =
+
+        print("emitted from function: ", value)
+        print("Opa choto nado udalat")
+
+
+    def delete_selected_items(self):
+        print("Перед удалением объектов было: ", len(self.objects))
+
+        for idx in self.selected_objects_idxs:
+            selected_object = self.objects.pop(idx)
+
+            selected_listitem = selected_object['listitem']
+            self.list_widget.delete_item(selected_listitem)
+
+            selected_3d = selected_object['3d_object']
+            self.threed_vis.removeItem(selected_3d)
+            # self.threed_vis.update()
+
+            selected_roi = selected_object["Bev_object"]
+            self.bev_widget.bev_view.removeItem(selected_roi)
+
+            print("Во время удаления их становится: ", len(self.objects))
+
+
+
+
+
     def update_all_widgets(self):
         pass
 
@@ -435,51 +452,6 @@ class mainwindows(QtWidgets.QWidget):
         self.bev_widget.synchronize_roi(obj_idx)
         self.list_widget.synchronizeListItem(obj_idx)
         # print(self.objects[obj_idx])
-
-    # def update_list_widget(self):
-    #     self.list_widget.clear()
-    #     for ind,item in enumerate(self.objects):
-    #         MyListWidgetObject = item["listwidgetitem"]
-    #         ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
-    #         ListWidgetItem.setSizeHint(MyListWidgetObject.sizeHint())
-    #         self.list_widget.addItem(ListWidgetItem)
-    #         self.list_widget.setItemWidget(ListWidgetItem, MyListWidgetObject)
-    #         item["listitem"] = ListWidgetItem
-
-
-    #
-    # def delete_item(self):
-    #
-    #     for list_item in self.list_widget.selectedItems():
-    #         self.list_widget.takeItem(self.list_widget.row(list_item))
-    #
-    #         # print(list_item)
-    #         # print(self.objects)
-    #
-    #         # print([item["listitem"] for item in self.objects], list_item)
-    #         object_ind = [item["listitem"] for item in self.objects].index(list_item)
-    #
-    #         object_2_del = self.objects.pop(object_ind)
-    #
-    #         # print(object_2_del["3d_object"])
-    #         # print(self.threed_vis.items[object_ind[0]])
-    #
-    #         # print(object_2_del["Bev_object"])
-    #         # print(self.bev_widget.bev_view.addedItems[object_ind[0]])
-    #
-    #         # self.threed_vis.items.pop(object_ind)
-    #         self.bev_widget.bev_view.removeItem(object_2_del["Bev_object"])
-    #
-    #         self.threed_vis.removeItem(object_2_del["3d_object"])
-    #
-    # def select_item(self):
-    #
-    #     self.selected_boxes = []
-    #
-    #     for list_item in self.list_widget.selectedItems():
-    #         object_tuple = self.objects[self.list_widget.row(list_item)]
-    #
-    #         self.selected_boxes.append(object_tuple["3d_object"])
 
 
 if __name__ == '__main__':

@@ -83,23 +83,36 @@ class Volumetric_widget_2(gl.GLViewWidget):
                 new_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
 
                 for object in new_objects:
-                    if object in self.current_selected:
-                        self.current_selected.discard(object)
-                    else:
-                        self.current_selected.add(object)
+                    if isinstance(object, gl.GLMeshItem):
+                        if object in self.current_selected:
+                            self.current_selected.discard(object)
+                        else:
+                            self.current_selected.add(object)
 
                 # self.objects_selected.update(set(new_objects))
                 # self.highlight_object()
 
 
             else:
+                new_selected_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1])
 
-                self.current_selected = set(self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1]))
+                self.current_selected = set([object for object in new_selected_objects if isinstance(object, gl.GLMeshItem)])
                 # self.highlight_object()
 
         self.SigSelect3dObject.emit("3d")
         self.highlight_object()
                 # self.update_global_selection()
+
+    def wheelEvent(self, ev):
+        delta = ev.angleDelta()
+        delta_value = delta.y()/120
+
+        if ev.modifiers() == QtCore.Qt.ShiftModifier:
+            self.scale_object(self.current_selected, delta_value)
+        elif ev.modifiers() == QtCore.Qt.ControlModifier:
+            self.translate_object(self.current_selected, delta_value)
+        else:
+            super().wheelEvent(ev)
 
     def update3dObject(self):
         #change
