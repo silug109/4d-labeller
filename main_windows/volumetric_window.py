@@ -91,8 +91,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
                 # self.objects_selected.update(set(new_objects))
                 # self.highlight_object()
-
-
             else:
                 new_selected_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1])
 

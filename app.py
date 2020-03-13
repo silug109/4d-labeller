@@ -378,14 +378,19 @@ class mainwindows(QtWidgets.QWidget):
         class_instance = "Cat"
         id_instance = "some_id"
 
-        myListWidgetObject = QCustomQWidget()
+
+        myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
+
+        # myListWidgetObject = QCustomQWidget()
         myListWidgetObject.setTextUp(id_instance)
         myListWidgetObject.setTextDown(str(coord))
 
-        ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
-        ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
-        self.list_widget.addItem(ListWidgetItem)
-        self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
+        # ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
+        # ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
+
+        self.list_widget.add_item(ListWidgetItem, myListWidgetObject)
+        # self.list_widget.addItem(ListWidgetItem)
+        # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
         #Todo change adding of listitem
 
         item["coord"] = coord

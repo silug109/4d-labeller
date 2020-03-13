@@ -57,6 +57,7 @@ class ListWidg(QtWidgets.QListWidget):
         if self.current_selected != self.selectedItems():
             self.current_selected = self.selectedItems()
             self.SigSelectionChanged.emit("list")
+            #TODO someshit
         # else:
         #     self.current_selected = self.selectedItems()
 
@@ -101,39 +102,23 @@ class ListWidg(QtWidgets.QListWidget):
             # list_instance = self.item(list_ind)
             # list_instance.setSelected(True)
 
-    # def delete_selected_items(self):
-    #
-    #     if self.current_selected == []:
-    #         print("Nothing to delete")
-    #     else:
-    #         selected_items = self.current_selected
-    #         self.SigObjectDeleted.emit(list(selected_items))
-    #
-    #         # print(selected_items)
-    #         #
-    #         # idxs = []
-    #         #
-    #         # for selected_item in selected_items:
-    #         #
-    #         #     self.takeItem(self.row(selected_item))
-    #         #     print("SUCCESFULLY")
-    #         #
-    #         #     idx = [ item["listitem"] for item in self.parent().objects].index(selected_item)
-    #         #
-    #         #     self.SigObjectDeleted.emit(list(selected_items))
-    #         #
-    #         #     # object_ind = [item["listitem"] for item in self.parent().objects].index(list_item)
-    #         #
-    #         #     # object_2_del = self.objects.pop(object_ind)
-    #         #
-    #         #     # print(object_2_del["3d_object"])
-    #         #     # print(self.threed_vis.items[object_ind[0]])
-    #         #
-    #         #     # print(object_2_del["Bev_object"])
-    #         #     # print(self.bev_widget.bev_view.addedItems[object_ind[0]])
-    #         #
-    #         #     # self.threed_vis.items.pop(object_ind)
-    #         #     # self.bev_widget.bev_view.removeItem(object_2_del["Bev_object"])
+    def create_item(self):
+        myListWidgetObject = QCustomQWidget()
+        # myListWidgetObject.setTextUp(id_instance)
+        # myListWidgetObject.setTextDown(str(coord))
+        myListWidgetObject.class_combo.currentIndexChanged.connect()
+
+        ListWidgetItem = QtWidgets.QListWidgetItem(self)
+        ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
+        # self.list_widget.addItem(ListWidgetItem)
+        # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
+        return myListWidgetObject, ListWidgetItem
+
+    def add_item(self, listwidgetitem, customwidgetitem ):
+        self.addItem(listwidgetitem)
+        self.setItemWidget(listwidgetitem,customwidgetitem)
+        pass
+
 
     def delete_item(self, list_item):
         self.takeItem(self.row(list_item))
@@ -305,10 +290,9 @@ class QCustomQWidget(QtWidgets.QWidget):
         self.textDownQLabel.setStyleSheet(''' color: rgb(255, 0, 0); ''')
 
         self.setComboBox()
-        self.class_combo.currentIndexChanged.connect(self.print_if_change)
-
-    def print_if_change(self):
-        print(self," CHANGED its class to ", self.class_combo.currentText())
+    #     self.class_combo.currentIndexChanged.connect(self.print_if_change)
+    # def print_if_change(self):
+    #     print(self," CHANGED its class to ", self.class_combo.currentText())
 
     def setTextUp (self, text):
         self.textUpQLabel.setText(text)
