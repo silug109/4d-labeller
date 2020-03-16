@@ -69,6 +69,7 @@ class Bev_Canvas_2(pg.GraphicsView):
         self.bev_view.addItem(y_axis_item)
 
         self.dev_mode = dev_mode
+        self.currentSelected = []
 
         # self.load_radar()
 
@@ -163,6 +164,22 @@ class Bev_Canvas_2(pg.GraphicsView):
     # def selectedVertex(self):
     #     return self.hVertex is not None
 
+    def highlight_selected(self):
+        for roi in self.bev_view.addedItems:
+            if roi in self.currentSelected:
+                self.highlight_roi(roi,True)
+            else:
+                self.highlight_roi(roi, False)
+
+
+    def highlight_roi(self, roi, highlight = True):
+
+        if highlight == True:
+            pen = (0, 255, 0)
+        else:
+            pen = (255,255,255)
+
+        roi.setPen(pen)
 
     def mouseMoveEvent(self, ev):
         super().mouseMoveEvent(ev)

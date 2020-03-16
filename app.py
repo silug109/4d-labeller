@@ -174,8 +174,9 @@ class mainwindows(QtWidgets.QWidget):
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
         self.create_ROI_but.clicked.connect(self.bev_widget.create_ROI)
 
-        self.create_ROI_2 = QtWidgets.QPushButton('select')
-        # self.create_ROI_2.clicked.connect(self.select_item)
+        self.create_ROI_2 = QtWidgets.QPushButton('Print info')
+        # self.create_ROI_2.clicked.connect(self.print_info)
+        self.create_ROI_2.clicked.connect(self.make_roi_selected)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -254,12 +255,16 @@ class mainwindows(QtWidgets.QWidget):
             self.list_widget.current_selected = [self.objects[idx]["listitem"] for idx in self.selected_objects_idxs]
             self.list_widget.update_selection()
 
+            self.bev_widget.currentSelected = [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]
+            self.bev_widget.highlight_selected()
+
             print(self.selected_objects_idxs)
 
 
         if source == "list":
 
             current_selected = self.list_widget.current_selected
+            print("list selected: ", len(current_selected))
 
             idxs = []
 
@@ -276,11 +281,13 @@ class mainwindows(QtWidgets.QWidget):
             self.threed_vis.current_selected = [self.objects[idx]["3d_object"] for idx in self.selected_objects_idxs]
             self.threed_vis.highlight_object()
 
+            self.bev_widget.currentSelected = [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]
+            self.bev_widget.highlight_selected()
+
 
         # self.update_list_widget(idxs)
         # self.update_3d_boxes(idxs)
         # self.update_bev_boxes(idxs)
-
 
     def change_status(self,text):
         self.statusbar.showMessage(text)
@@ -341,22 +348,6 @@ class mainwindows(QtWidgets.QWidget):
 
     def create_3d_cube(self, pos, size, angle=0):
         return self.threed_vis.create_3d_cube(pos,size,angle)
-
-    # def update_3d_boxes_selection(self, idxs):
-    #     selected_object = [self.objects[idx]["3d_object"] for idx in idxs]
-    #
-    #     self.threed_vis.current_selected = selected_object
-    #     self.threed_vis.highlight_object()
-    #
-    #     # for item in self.threed_vis.items:
-    #     #     if isinstance(item, gl.GLMeshItem):
-    #     #         if item in selected_object:
-    #     #             item.opts["edgeColor"] = (0,0,1,0.6)
-    #     #         else:
-    #     #             item.opts["edgeColor"] = (1,1,1,1)
-    #     # self.threed_vis.update()
-
-
 
     def update_one_object_db(self, object_ind):
         pass
@@ -433,9 +424,6 @@ class mainwindows(QtWidgets.QWidget):
             print("Во время удаления их становится: ", len(self.objects))
 
 
-
-
-
     def update_all_widgets(self):
         pass
 
@@ -447,7 +435,7 @@ class mainwindows(QtWidgets.QWidget):
         # print(self.objects[obj_idx])
 
     def synchronize_all_widgets_list(self, obj_idx):
-        print(obj_idx)
+        print("Изменение в ",obj_idx, " объекте в ListWidget")
         self.threed_vis.synchronize_3d_object(obj_idx)
         self.bev_widget.synchronize_roi(obj_idx)
         # print(self.objects[obj_idx])
@@ -458,7 +446,15 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget.synchronizeListItem(obj_idx)
         # print(self.objects[obj_idx])
 
+    def print_info(self):
+        for object in self.objects:
+            print("coords: ", object['coord'], " class: ",object["class"] )
 
+    def make_roi_selected(self):
+        pen = (0, 255, 0)
+        for roi in self.bev_widget.bev_view.addedItems:
+            roi.setPen(pen)
+            # roi.setSelected(False)
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)

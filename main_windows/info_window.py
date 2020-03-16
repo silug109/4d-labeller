@@ -51,7 +51,7 @@ class ListWidg(QtWidgets.QListWidget):
         super().mousePressEvent(ev)
 
         # print("previous: ", self.current_selected)
-        # print("now selected: ", self.selectedItems())
+        print("now selected: ", self.selectedItems())
         # print("decision of comparison", self.current_selected != self.selectedItems() )
 
         if self.current_selected != self.selectedItems():
@@ -62,18 +62,25 @@ class ListWidg(QtWidgets.QListWidget):
         #     self.current_selected = self.selectedItems()
 
     def updateItem(self):
-        self.new_object = self.info_widget.get_object()
-        print("Old: ",self.object["coord"])
-        self.object["coord"] = self.new_object[1]
-        self.object["id"] = self.new_object[0]
-        print("New: ", self.object["coord"])
+        print("Is info_widget exist:", hasattr(self, "info_widget"))
 
-        # self.parent().synchronize_all_widgets(self.obj_idx)
+        if hasattr(self,"info_widget"):
+            self.new_object = self.info_widget.get_object()
+            print("Old: ",self.object["coord"])
+            self.object["coord"] = self.new_object[1]
+            self.object["id"] = self.new_object[0]
+            print("New: ", self.object["coord"])
+            #здесь происходит синхронизация, разобраться. апдейтится self.parent().objects[self.obj_idx]
+
+            self.WidgetItem.setTextUp(self.new_object[0])
+            self.WidgetItem.setTextDown(str(self.new_object[1]))
+            self.SigObjectChanged.emit(self.obj_idx)
+        else:
+            print("Nothing")
+            pass
 
         # self.object.class_combo = self.new_object.class_combo
-        self.WidgetItem.setTextUp(self.new_object[0])
-        self.WidgetItem.setTextDown(str(self.new_object[1]))
-        self.SigObjectChanged.emit(self.obj_idx)
+
 
     def synchronizeListItem(self, obj_idx):
         objects = self.parent().objects
@@ -102,11 +109,28 @@ class ListWidg(QtWidgets.QListWidget):
             # list_instance = self.item(list_ind)
             # list_instance.setSelected(True)
 
+    def update_class(self, value):
+        print("class changed ", value)
+
+        idx_changed = [object["listwidgetitem"] for object in self.parent().objects].index(value)
+        self.object = self.parent().objects[idx_changed]
+        print(self.object)
+        print(value.class_combo.currentText())
+        self.object["class"] = value.class_combo.currentText()
+        # self.object["class"] = value.class_combo.text()
+        # idx_changed = [self.itemWidget(self.item(ind)) for ind in range(self.count())].index(value)
+
+        self.SigObjectChanged.emit(idx_changed)
+        #todo порядок может иметь роль.
+
+        # SigObjectChanged.emit
+
     def create_item(self):
         myListWidgetObject = QCustomQWidget()
         # myListWidgetObject.setTextUp(id_instance)
         # myListWidgetObject.setTextDown(str(coord))
-        myListWidgetObject.class_combo.currentIndexChanged.connect()
+        # myListWidgetObject.class_combo.currentIndexChanged.connect(self.change_class)
+        myListWidgetObject.SigClassChanged.connect(self.update_class)
 
         ListWidgetItem = QtWidgets.QListWidgetItem(self)
         ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
@@ -269,7 +293,7 @@ class QCustomQWidget(QtWidgets.QWidget):
     Coord - вывод координат объектов
     '''
 
-
+    SigClassChanged = QtCore.pyqtSignal('PyQt_PyObject')
 
     def __init__ (self, parent = None):
         super(QCustomQWidget, self).__init__(parent)
@@ -290,7 +314,7 @@ class QCustomQWidget(QtWidgets.QWidget):
         self.textDownQLabel.setStyleSheet(''' color: rgb(255, 0, 0); ''')
 
         self.setComboBox()
-    #     self.class_combo.currentIndexChanged.connect(self.print_if_change)
+        self.class_combo.currentIndexChanged.connect(self.change_class)
     # def print_if_change(self):
     #     print(self," CHANGED its class to ", self.class_combo.currentText())
 
@@ -300,7 +324,8 @@ class QCustomQWidget(QtWidgets.QWidget):
         self.textDownQLabel.setText(text)
     def setComboBox(self):
         self.class_combo.insertItems(1,class_list)
-
+    def change_class(self):
+        self.SigClassChanged.emit(self)
         # TODO как выкидывать измененный объект из класса, который ни наследуется, ни может возвращать
 
 class exampleQMainWindow (QtGui.QMainWindow):
@@ -311,11 +336,13 @@ class exampleQMainWindow (QtGui.QMainWindow):
         self.myQListWidget = ListWidg(self)
         # self.myQListWidget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         for index, name, icon in [ ('No.1', 'Meyoko', 'icon.png'), ('No.2', 'Nyaruko', 'icon.png'), ('No.3', 'Louise', 'icon.png')]:
-            myQCustomQWidget = QCustomQWidget()
+            myQCustomQWidget, myQListWidgetItem = self.myQListWidget.create_item()
+
+            # myQCustomQWidget = QCustomQWidget()
             myQCustomQWidget.setTextUp(index)
             myQCustomQWidget.setTextDown(name)
-            myQListWidgetItem = QtWidgets.QListWidgetItem(self.myQListWidget)
-            myQListWidgetItem.setSizeHint(myQCustomQWidget.sizeHint())
+            # myQListWidgetItem = QtWidgets.QListWidgetItem(self.myQListWidget)
+            # myQListWidgetItem.setSizeHint(myQCustomQWidget.sizeHint())
             # Add QListWidgetItem into QListWidget
             self.myQListWidget.addItem(myQListWidgetItem)
             self.myQListWidget.setItemWidget(myQListWidgetItem, myQCustomQWidget)

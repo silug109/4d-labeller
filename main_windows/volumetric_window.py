@@ -117,11 +117,14 @@ class Volumetric_widget_2(gl.GLViewWidget):
         pass
 
     def synchronize_3d_object(self, obj_idx):
+
         objects = self.parent().objects
         object = objects[obj_idx]
 
         object_3d = object["3d_object"]
         new_coords = object["coord"]
+
+        print("new cords inside of threedvis: ", str(new_coords))
 
         meshdata = self.create_meshdata(coords = new_coords)
         object_3d.setMeshData(**meshdata)
