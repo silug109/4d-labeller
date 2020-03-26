@@ -278,7 +278,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         # ptcld[:, 3] = np.ones(ptcld[:, 3].shape)
         # ptcld = ptcld.dot(trans_matrix)
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
-        self.main.addItem(ptcld_qtobject)
+        self.addItem(ptcld_qtobject)
 
     def transform_pointcloud(self, points):
 

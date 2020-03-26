@@ -113,10 +113,10 @@ class Canvas(QWidget):
         # print("ДВИГАЕШЬ!")
 
         # Update coordinates in status bar if image is opened
-        window = self.parent().window()
-        if window.filePath is not None:
-            self.parent().window().labelCoordinates.setText(
-                'X: %d; Y: %d' % (pos.x(), pos.y()))
+        # window = self.parent().window()
+        # if window.filePath is not None:
+        #     self.parent().window().labelCoordinates.setText(
+        #         'X: %d; Y: %d' % (pos.x(), pos.y()))
 
         # Polygon drawing.
         if self.drawing():

@@ -11,11 +11,22 @@ from main_windows.bev_window import Bev_Canvas_2
 from main_windows.volumetric_window import Volumetric_widget_2
 
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import *
+
+import os
+import glob
+
+from PIL import Image
 
 
 def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elevation_max=16):
     '''
-    :param frame: (config.size[1], size[2], config.size[3])
+    Generate poincloud coordinates, points color list from tensor contatining positional information of 3d scene
+    :param
+    frame: np.ndarray (config.size[1], size[2], config.size[3])
+    range_max: int max range in meters for radar(should be config info)
+    azimuth_range_max: int max azimuth in degrees for radar(should be in config info)
+    elevation_max:int max elevation in degrees for radar(should be in  config info)
     :return: ndarray(num_points, 4)
     '''
     R = np.arange(0, range_max, range_max / 512)
@@ -37,6 +48,11 @@ def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elev
     return points_cord, colors_arr
 
 def euler_to_so3(rpy):
+    '''
+    create rotational part for transformation matrix
+    :param rpy: list of int. contain 3 angles in rads
+    :return: np.ndaarray(3,3)
+    '''
     R_x = np.matrix([[1, 0, 0],
                      [0, cos(rpy[0]), -sin(rpy[0])],
                      [0, sin(rpy[0]), cos(rpy[0])]])
@@ -51,6 +67,11 @@ def euler_to_so3(rpy):
 
 
 def build_se3_transform(xyzrpy):
+    '''
+    create transformation matrix Rotational part + Translate part
+    :param xyzrpy: list of 6 int. first three coordinate if translation + 3 angles
+    :return: np.ndarray(4,4)
+    '''
     se3 = matlib.identity(4)
     se3[0:3, 0:3] = euler_to_so3(xyzrpy[3:6])
     se3[0:3, 3] = np.matrix(xyzrpy[0:3]).transpose()
@@ -69,18 +90,14 @@ class mainwindows(QtWidgets.QWidget):
 
         self.objects = []
 
-        # self.objects_dict = dict()
-        # self.objects_dict.setdefault()
-
         self.filePath = None
         self.pointcloud_data = None
         self.image_data = None
-        self.labels = None
+        self.image_pixmap = None
+        # self.labels = None
 
         self.selected_objects = []
         self.selected_objects_idxs = []
-
-
 
 
         super(mainwindows,self).__init__()
@@ -103,8 +120,8 @@ class mainwindows(QtWidgets.QWidget):
         OpenFileAction = QtWidgets.QAction('&Open_file', self)
         OpenFileAction.setShortcut('Ctrl+N')
         OpenFileAction.setStatusTip('open new file to label')
-        OpenFileAction.triggered.connect(app.quit)
-        # OpenFileAction.triggered.connect(self.open_file)
+        # OpenFileAction.triggered.connect(app.quit)
+        OpenFileAction.triggered.connect(self.open_file)
         file.addAction(OpenFileAction)
         # TODO функция с загрузкой файлов
 
@@ -113,8 +130,8 @@ class mainwindows(QtWidgets.QWidget):
 
         LoadCalibAction = QtWidgets.QAction('&Calibration load', self)
         LoadCalibAction.setStatusTip('Exit application')
-        LoadCalibAction.triggered.connect(app.quit)
-        # LoadCalibAction.triggered.connect(self.load_calib)
+        # LoadCalibAction.triggered.connect(app.quit)
+        LoadCalibAction.triggered.connect(self.load_calib)
         transform.addAction(LoadCalibAction)
         # TODO функция с калибровкой
 
@@ -122,20 +139,21 @@ class mainwindows(QtWidgets.QWidget):
 
         SaveAnnotationsAction = QtWidgets.QAction('&Save annotations', self)
         SaveAnnotationsAction.setStatusTip('Save annotations')
-        SaveAnnotationsAction.triggered.connect(app.quit)
-        # LoadCalibAction.triggered.connect(self.save_annotations)
+        # SaveAnnotationsAction.triggered.connect(app.quit)
+        SaveAnnotationsAction.triggered.connect(self.save_annotations)
         annotations.addAction(SaveAnnotationsAction)
 
         LoadAnnotationsAction = QtWidgets.QAction('&Load annotations', self)
         LoadAnnotationsAction.setStatusTip('Load annotations')
-        LoadAnnotationsAction.triggered.connect(app.quit)
-        # LoadCalibAction.triggered.connect(self.save_annotations)
+        # LoadAnnotationsAction.triggered.connect(app.quit)
+        LoadAnnotationsAction.triggered.connect(self.load_annotations)
         annotations.addAction(LoadAnnotationsAction)
+
 
         self.main_layout = QtWidgets.QHBoxLayout()
 
         self.statusbar = QtGui.QStatusBar(self)
-        self.statusbar.showMessage("I'm")
+        self.statusbar.showMessage("Nothing here still")
 
         self.left_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
@@ -143,18 +161,18 @@ class mainwindows(QtWidgets.QWidget):
         self.main_layout.addLayout(self.left_layout,2)
         self.main_layout.addLayout(self.right_layout)
 
+        self.threed_vis = Volumetric_widget_2(self) # widget for 3D visualisations
+        # self.threed_vis.resize(640,640)
 
+        self.canvas = Canvas(self) # widget for visualisation of images
+        self.canvas.mode = self.canvas.CREATE
 
-        self.threed_vis = Volumetric_widget_2(self)
-        self.threed_vis.resize(640,640)
-
-        self.canvas = Canvas(self)
-
-
-        self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main")
+        self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
         self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
         # self.bev_widget.SigBevSelect.connect()
 
+
+        #buttons
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
@@ -189,17 +207,13 @@ class mainwindows(QtWidgets.QWidget):
         self.button_layout_2.addWidget(self.twod)
         self.button_layout_2.addWidget(self.camera)
 
-        self.list_widget = ListWidg(self)
+        self.list_widget = ListWidg(self) # widget for info visualisation about boxes
         self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
         self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_selected_items)
-
-        self.info = QtWidgets.QLabel("Nothing still")
-        # from main_windows.info_window import InfoWidget
-        # self.info_box = InfoWidget(self)
 
         self.button_layout_2 = QtWidgets.QHBoxLayout()
         self.button_layout_2.addWidget(self.threed)
@@ -211,10 +225,14 @@ class mainwindows(QtWidgets.QWidget):
         self.left_layout.addLayout(self.button_layout_2)
         self.left_layout.addWidget(self.bev_widget,2)
 
-        self.right_layout.addWidget(self.canvas)
-        self.right_layout.addWidget(self.list_widget)
+        self.right_splitter = QtWidgets.QSplitter(Qt.Vertical)
+        self.right_splitter.addWidget(self.canvas)
+        self.right_splitter.addWidget(self.list_widget)
+        self.right_layout.addWidget(self.right_splitter)
+
+        # self.right_layout.addWidget(self.canvas)
+        # self.right_layout.addWidget(self.list_widget)
         self.right_layout.addWidget(self.delete)
-        self.right_layout.addWidget(self.info)
 
         self.left_layout.addWidget(self.statusbar)
 
@@ -224,11 +242,30 @@ class mainwindows(QtWidgets.QWidget):
 
         self.load_radar_poincloud()
 
-        self.canvas.mode = self.canvas.CREATE
 
-        image_pixmap = QPixmap('./data/0000000000.png')
-        image_pixmap_resized = image_pixmap.scaled(640,480,QtCore.Qt.KeepAspectRatio)
-        self.canvas.loadPixmap(image_pixmap_resized)
+        null_image = np.zeros((340,480,3))
+        null_image[30:340, 320:340, :] = 240
+
+        null_Qimage = QtGui.QImage(null_image, null_image.shape[1], \
+                             null_image.shape[0], null_image.shape[1] * 3, QtGui.QImage.Format_RGB888)
+        null_pixmap = QtGui.QPixmap(null_Qimage)
+        self.canvas.loadPixmap(null_pixmap)
+
+        # self.scene.addPixmap(pix)
+
+        # height, width, channel = null_image.shape
+        # bytesPerLine = 3 * width
+        # null_Qimage = QImage(null_image, width, height, bytesPerLine, QImage.Format_RGB888)
+        # null_Qimage = QImage()
+        # null_Qimage.loadFromData(null_image)
+
+        # null_pixmap =  QPixmap(640,480)
+        # null_pixmap.fromImage(null_Qimage)
+        # print("null pixamap", null_pixmap.size().width(),null_pixmap.size().height() )
+        # self.canvas.loadPixmap(null_pixmap)
+        # image_pixmap = QPixmap('./data/0000000000.png')
+        # image_pixmap_resized = image_pixmap.scaled(640,480,QtCore.Qt.KeepAspectRatio)
+        # self.canvas.loadPixmap(image_pixmap_resized)
 
     def update_selection(self, source = None):
 
@@ -288,13 +325,6 @@ class mainwindows(QtWidgets.QWidget):
         # self.update_list_widget(idxs)
         # self.update_3d_boxes(idxs)
         # self.update_bev_boxes(idxs)
-
-    def change_status(self,text):
-        self.statusbar.showMessage(text)
-
-    def change_random_status(self):
-        random_text = ''.join([str(chr(random.randint(90,140))) for _ in range(20)])
-        self.statusbar.showMessage(random_text)
 
     def load_radar_poincloud(self):
         '''
@@ -404,7 +434,6 @@ class mainwindows(QtWidgets.QWidget):
         print("emitted from function: ", value)
         print("Opa choto nado udalat")
 
-
     def delete_selected_items(self):
         print("Перед удалением объектов было: ", len(self.objects))
 
@@ -423,10 +452,8 @@ class mainwindows(QtWidgets.QWidget):
 
             print("Во время удаления их становится: ", len(self.objects))
 
-
     def update_all_widgets(self):
         pass
-
 
     def synchronize_all_widgets_bev(self, obj_idx):
         self.threed_vis.synchronize_3d_object(obj_idx)
@@ -446,15 +473,128 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget.synchronizeListItem(obj_idx)
         # print(self.objects[obj_idx])
 
-    def print_info(self):
-        for object in self.objects:
-            print("coords: ", object['coord'], " class: ",object["class"] )
-
     def make_roi_selected(self):
         pen = (0, 255, 0)
         for roi in self.bev_widget.bev_view.addedItems:
             roi.setPen(pen)
             # roi.setSelected(False)
+
+
+
+    # Menu functions
+    # FILE MENU
+    def open_file(self):
+        self.change_status("opening file")
+        print("opening file")
+
+        dialog = QtWidgets.QFileDialog
+        fname = dialog.getOpenFileName(self, 'Open file', os.getcwd())[0]
+        print("Selected file: ", fname)
+
+        print("Base scene name: ", fname[fname.rindex("/")+1:fname.rindex("_")])
+
+        scene_name = fname[fname.rindex("/")+1:fname.rindex("_")]
+        directory_name = fname[:fname.rindex("/")]
+        print(directory_name)
+
+        self.filePath = f"{directory_name}/{scene_name}"
+
+        for filename in glob.glob( f"{directory_name}/{scene_name}*"):
+            print(filename)
+
+            if filename.endswith(".png"):
+                print("think, it is image")
+
+                try:
+                    img = Image.open(filename)
+                except:
+                    print("something wrong")
+                    break
+
+                self.image_data = np.array(img)
+                print("Loaded image, ", type(self.image_data), self.image_data.shape)
+                # self.image_pixmap = QPixmap(QImage().fromData(self.image_data))
+                # self.image_pixmap = QPixmap().fromImage(QImage().fromData((self.image_data)))
+                self.image_pixmap = QPixmap(filename)
+                image_pixmap_resized = self.image_pixmap.scaled(640,480,QtCore.Qt.KeepAspectRatio)
+                self.canvas.loadPixmap(image_pixmap_resized)
+                print(image_pixmap_resized.size())
+                # self.canvas.update()
+
+            elif filename.endswith(".npy"):
+                print("think, it is 3d points")
+                data = np.load(filename)
+                data = data[::2, ::2, ::2]
+                ptcld, _ = self.pointcloud_coords_generation(frame=data)
+                self.pointcloud_data = ptcld
+                self.threed_vis.load_radar_pointcloud()
+
+
+
+
+
+
+
+        # fname = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
+        #
+        # print("Selected: ", fname[0])
+        #
+        # for filename in fname[0]:
+        #     print(filename, " is processing")
+        #
+
+
+
+
+        # with f:
+        #     data = f.read()
+        #     self.textEdit.setText(data)
+        pass
+
+
+    #Transform menu
+
+    def load_calib(self):
+        self.change_status("loading calib")
+        print("loading calib")
+
+        dialog = QtWidgets.QFileDialog
+        fname = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
+
+        pass
+
+    #Annotation menu
+    def save_annotations(self):
+        self.change_status("saving annotations")
+        print("saving annotations")
+
+
+        pass
+
+    def load_annotations(self):
+        self.change_status("loading annotations")
+        print("loading annotations")
+
+        dialog = QtWidgets.QFileDialog
+        fname = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
+        pass
+
+
+
+    # UTILS functions
+    def change_status(self,text):
+        self.statusbar.showMessage(text)
+
+    def change_random_status(self):
+        random_text = ''.join([str(chr(random.randint(90,140))) for _ in range(20)])
+        self.statusbar.showMessage(random_text)
+
+    def print_info(self):
+        for object in self.objects:
+            print("coords: ", object['coord'], " class: ",object["class"] )
+
+
+
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
