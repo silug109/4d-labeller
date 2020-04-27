@@ -1,10 +1,3 @@
-import numpy.matlib as matlib
-from math import sin, cos, atan2, sqrt
-import random
-# from window_2d import *
-import numpy as np
-
-
 from libs.canvas import Canvas
 from main_windows.info_window import *
 from main_windows.bev_window import Bev_Canvas_2
@@ -15,11 +8,12 @@ from PyQt5.QtCore import *
 
 import os
 import glob
+import json
 
 from PIL import Image
 
 
-def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elevation_max=16):
+def pointcloud_coords_generation(frame, range_max = 67, azimuth_range_max = 57, elevation_max = 16, threshold = 0.5):
     '''
     Generate poincloud coordinates, points color list from tensor contatining positional information of 3d scene
     :param
@@ -29,22 +23,26 @@ def pointcloud_coords_generation(frame, range_max=67, azimuth_range_max=57, elev
     elevation_max:int max elevation in degrees for radar(should be in  config info)
     :return: ndarray(num_points, 4)
     '''
-    R = np.arange(0, range_max, range_max / 512)
-    theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / 128)
-    epsilon = np.arange(0, elevation_max, elevation_max / 40)
 
-    points_cord = []
-    for i in range(frame.shape[0]):
-        for j in range(frame.shape[1]):
-            for k in range(0, frame.shape[2] - 6):
-                if frame[i, j, k] > 0.1:
-                    x = R[i] * np.cos(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                    y = R[i] * np.sin(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                    z = R[i] * np.sin(epsilon[k] * np.pi / 180)
-                    points_cord.append([x, y, z, frame[i, j, k]])
+    R = np.arange(0, range_max, range_max / frame.shape[0])
+    theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+    epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
 
-    points_cord = np.array(points_cord)
+    theta_sin = np.sin(theta * np.pi / 180)
+    theta_cos = np.cos(theta * np.pi / 180)
+    epsilon_sin = np.sin(epsilon * np.pi / 180)
+    epsilon_cos = np.cos(epsilon * np.pi / 180)
+
+    tup_coord = np.nonzero(frame > threshold)
+
+    x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+
+    points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+    points_cord = np.array(points)
     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
+
     return points_cord, colors_arr
 
 def euler_to_so3(rpy):
@@ -65,7 +63,6 @@ def euler_to_so3(rpy):
     R_zyx = R_z * R_y * R_x
     return R_zyx
 
-
 def build_se3_transform(xyzrpy):
     '''
     create transformation matrix Rotational part + Translate part
@@ -76,7 +73,6 @@ def build_se3_transform(xyzrpy):
     se3[0:3, 0:3] = euler_to_so3(xyzrpy[3:6])
     se3[0:3, 3] = np.matrix(xyzrpy[0:3]).transpose()
     return se3
-
 
 
 class mainwindows(QtWidgets.QWidget):
@@ -95,6 +91,8 @@ class mainwindows(QtWidgets.QWidget):
         self.image_data = None
         self.image_pixmap = None
         # self.labels = None
+
+        self.choose_file = False
 
         self.selected_objects = []
         self.selected_objects_idxs = []
@@ -149,7 +147,6 @@ class mainwindows(QtWidgets.QWidget):
         LoadAnnotationsAction.triggered.connect(self.load_annotations)
         annotations.addAction(LoadAnnotationsAction)
 
-
         self.main_layout = QtWidgets.QHBoxLayout()
 
         self.statusbar = QtGui.QStatusBar(self)
@@ -170,7 +167,6 @@ class mainwindows(QtWidgets.QWidget):
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
         self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
         # self.bev_widget.SigBevSelect.connect()
-
 
         #buttons
         self.threed = QtWidgets.QPushButton('Load 3d')
@@ -225,13 +221,13 @@ class mainwindows(QtWidgets.QWidget):
         self.left_layout.addLayout(self.button_layout_2)
         self.left_layout.addWidget(self.bev_widget,2)
 
-        self.right_splitter = QtWidgets.QSplitter(Qt.Vertical)
-        self.right_splitter.addWidget(self.canvas)
-        self.right_splitter.addWidget(self.list_widget)
-        self.right_layout.addWidget(self.right_splitter)
+        # self.right_splitter = QtWidgets.QSplitter(Qt.Vertical)
+        # self.right_splitter.addWidget(self.canvas)
+        # self.right_splitter.addWidget(self.list_widget)
+        # self.right_layout.addWidget(self.right_splitter)
 
-        # self.right_layout.addWidget(self.canvas)
-        # self.right_layout.addWidget(self.list_widget)
+        self.right_layout.addWidget(self.canvas)
+        self.right_layout.addWidget(self.list_widget)
         self.right_layout.addWidget(self.delete)
 
         self.left_layout.addWidget(self.statusbar)
@@ -241,7 +237,6 @@ class mainwindows(QtWidgets.QWidget):
         self.setLayout(self.real_main_layout)
 
         self.load_radar_poincloud()
-
 
         null_image = np.zeros((340,480,3))
         null_image[30:340, 320:340, :] = 240
@@ -337,26 +332,29 @@ class mainwindows(QtWidgets.QWidget):
         self.pointcloud_data = ptcld
         pass
 
-    def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16):
+    def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
         '''
         :param frame: (config.size[1], size[2], config.size[3])
         :return: ndarray(num_points, 4)
         '''
-        R = np.arange(0, range_max, range_max / 512)
-        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / 128)
-        epsilon = np.arange(0, elevation_max, elevation_max / 40)
+        R = np.arange(0, range_max, range_max / frame.shape[0])
+        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+        epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
 
-        points_cord = []
-        for i in range(frame.shape[0]):
-            for j in range(frame.shape[1]):
-                for k in range(0, frame.shape[2] - 6):
-                    if frame[i, j, k] > 0.1:
-                        x = R[i] * np.cos(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                        y = R[i] * np.sin(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                        z = R[i] * np.sin(epsilon[k] * np.pi / 180)
-                        points_cord.append([x, y, z, frame[i, j, k]])
+        theta_sin = np.sin(theta * np.pi / 180)
+        theta_cos = np.cos(theta * np.pi / 180)
+        epsilon_sin = np.sin(epsilon * np.pi / 180)
+        epsilon_cos = np.cos(epsilon * np.pi / 180)
 
-        points_cord = np.array(points_cord)
+        tup_coord = np.nonzero(frame > threshold)
+
+        x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+        y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+        z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+
+        points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+
+        points_cord = np.array(points)
         colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
         return points_cord, colors_arr
 
@@ -456,9 +454,12 @@ class mainwindows(QtWidgets.QWidget):
         pass
 
     def synchronize_all_widgets_bev(self, obj_idx):
+        print("inside synchronization")
         self.threed_vis.synchronize_3d_object(obj_idx)
+        print("3d visualization:success")
         # self.bev_widget.synchronize_roi(obj_idx)
         self.list_widget.synchronizeListItem(obj_idx)
+        print("list visualization:success")
         # print(self.objects[obj_idx])
 
     def synchronize_all_widgets_list(self, obj_idx):
@@ -487,13 +488,18 @@ class mainwindows(QtWidgets.QWidget):
         self.change_status("opening file")
         print("opening file")
 
-        dialog = QtWidgets.QFileDialog
-        fname = dialog.getOpenFileName(self, 'Open file', os.getcwd())[0]
+        # dialog = QtWidgets.QFileDialog
+        # fname = dialog.getOpenFileName(self, 'Open file', os.getcwd())[0]
+        fname = "D:\Programming\Github\\4d-labeller\data\\18.npy"
         print("Selected file: ", fname)
 
-        print("Base scene name: ", fname[fname.rindex("/")+1:fname.rindex("_")])
+        # print(f"SOMWTHING with {fname}")
 
-        scene_name = fname[fname.rindex("/")+1:fname.rindex("_")]
+        print(fname.rindex("/"))
+
+        print("Base scene name: ", fname[fname.rindex("/")+1:fname.rindex(".")])
+
+        scene_name = fname[fname.rindex("/")+1:fname.rindex(".")]
         directory_name = fname[:fname.rindex("/")]
         print(directory_name)
 
@@ -566,20 +572,74 @@ class mainwindows(QtWidgets.QWidget):
     #Annotation menu
     def save_annotations(self):
         self.change_status("saving annotations")
-        print("saving annotations")
 
+        if not(self.filePath is None):
+            annotation_file = self.filepath+".json"
+        else:
+            annotation_file = "annotation.json"
 
-        pass
+        print(len(self.objects))
+
+        objects_arr = []
+        for object in self.objects:
+            print(object)
+            object_dict = {"coord":object["coord"], "class":object["class"]}
+            objects_arr.append(object_dict)
+
+        with open(annotation_file, "w") as file:
+            json.dump(objects_arr, file)
+
+        print("annotations saved")
+        return pass
 
     def load_annotations(self):
         self.change_status("loading annotations")
         print("loading annotations")
 
-        dialog = QtWidgets.QFileDialog
-        fname = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
-        pass
+        if self.choose_file:
+            dialog = QtWidgets.QFileDialog
+            filename = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
+            if not(filename.endswith(".json")):
+                print("Error, loading annotation.json")
+                filename = "annotation.json"
+        else:
+            filename = "annotation.json"
 
+        with open(filename, "r") as file:
+            objects_dict = json.load(file)
 
+        for object in objects_dict:
+            item = {}
+            coord_str = object['coord']
+            x, y, z,  l, w, d, angle = coord_str.values()
+            class_instance = object["class"]
+
+            cubegl_object = self.threed_vis.create_3d_cube([x, y, z], [l, w, d], angle)
+            self.threed_vis.addItem(cubegl_object)
+
+            id_instance = "some_id"
+
+            myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
+
+            myListWidgetObject.setTextUp(id_instance)
+            myListWidgetObject.setTextDown(str(coord_str))
+            self.list_widget.add_item(ListWidgetItem, myListWidgetObject)
+
+            bounding_box = pg.RectROI([x, y], [l, w], angle = angle,centered=True, sideScalers=True)
+            bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+            bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+            self.bev_widget.bev_view.addItem(bounding_box)
+
+            item["Bev_object"] = bounding_box
+            item["coord"] = object["coord"]
+            item["class"] = class_instance
+            item["3d_object"] = cubegl_object
+            item["id"] = id_instance
+            item["listwidgetitem"] = myListWidgetObject
+            item["listitem"] = ListWidgetItem
+            item["IsSelected"] = False
+            self.objects.append(item)
+        return "success"
 
     # UTILS functions
     def change_status(self,text):
@@ -594,12 +654,9 @@ class mainwindows(QtWidgets.QWidget):
             print("coords: ", object['coord'], " class: ",object["class"] )
 
 
-
 if __name__ == '__main__':
-
     app = QtWidgets.QApplication(sys.argv)
     main_window = mainwindows()
-
     # mainwindows.resize(1200,1200)
     main_window.show()
     sys.exit(app.exec())

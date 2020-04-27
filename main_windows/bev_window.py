@@ -115,26 +115,29 @@ class Bev_Canvas_2(pg.GraphicsView):
     #     self.repaint()
 
 
-    def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16):
+    def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
         '''
         :param frame: (config.size[1], size[2], config.size[3])
         :return: ndarray(num_points, 4)
         '''
-        R = np.arange(0, range_max, range_max / 512)
-        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / 128)
-        epsilon = np.arange(0, elevation_max, elevation_max / 40)
+        R = np.arange(0, range_max, range_max / frame.shape[0])
+        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+        epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
 
-        points_cord = []
-        for i in range(frame.shape[0]):
-            for j in range(frame.shape[1]):
-                for k in range(0, frame.shape[2] - 6):
-                    if frame[i, j, k] > 0.1:
-                        x = R[i] * np.cos(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                        y = R[i] * np.sin(theta[j] * np.pi / 180) * np.cos(epsilon[k] * np.pi / 180)
-                        z = R[i] * np.sin(epsilon[k] * np.pi / 180)
-                        points_cord.append([x, y, z, frame[i, j, k]])
+        theta_sin = np.sin(theta * np.pi / 180)
+        theta_cos = np.cos(theta * np.pi / 180)
+        epsilon_sin = np.sin(epsilon * np.pi / 180)
+        epsilon_cos = np.cos(epsilon * np.pi / 180)
 
-        points_cord = np.array(points_cord)
+        tup_coord = np.nonzero(frame > threshold)
+
+        x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+        y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+        z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+
+        points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+
+        points_cord = np.array(points)
         colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
         return points_cord, colors_arr
 
@@ -267,6 +270,7 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         self.SigBevChange.emit(obj_ind)
 
+        print("Creation is success!")
         return bounding_box
 
 

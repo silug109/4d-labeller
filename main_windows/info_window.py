@@ -83,12 +83,16 @@ class ListWidg(QtWidgets.QListWidget):
 
 
     def synchronizeListItem(self, obj_idx):
+        print("debug")
         objects = self.parent().objects
         object = objects[obj_idx]
+
+        print(object)
 
         WidgetItem = object["listwidgetitem"]
         new_coords = object["coord"]
 
+        print("inside listwidget")
         WidgetItem.setTextDown(str(new_coords))
         WidgetItem.setTextUp(object["id"])
 
