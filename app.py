@@ -5,6 +5,7 @@ from main_windows.volumetric_window import Volumetric_widget_2
 
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import *
+from PyQt5 import QtWidgets
 
 import os
 import glob
@@ -160,9 +161,17 @@ class mainwindows(QtWidgets.QWidget):
 
         self.threed_vis = Volumetric_widget_2(self) # widget for 3D visualisations
         # self.threed_vis.resize(640,640)
+        self.threshold_slider = QtWidgets.QSlider(Qt.Horizontal)
+        self.threshold_slider.valueChanged.connect(self.threshold_change)
 
         self.canvas = Canvas(self) # widget for visualisation of images
         self.canvas.mode = self.canvas.CREATE
+        self.checkbox_canvas_mode = QtWidgets.QCheckBox("create mode or draw mode")
+        self.checkbox_canvas_mode.stateChanged.connect(self.changeModeCanvas)
+        self.canvas.newShape.connect(self.new_shape_canvas)
+        self.canvas.shapeMoved.connect(self.some_shape_moved)
+
+
 
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
         self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
@@ -172,6 +181,7 @@ class mainwindows(QtWidgets.QWidget):
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
+
 
         self.twod = QtWidgets.QPushButton('Load 2d')
         self.twod.clicked.connect(self.bev_widget.load_radar)
@@ -190,7 +200,8 @@ class mainwindows(QtWidgets.QWidget):
 
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
         # self.create_ROI_2.clicked.connect(self.print_info)
-        self.create_ROI_2.clicked.connect(self.make_roi_selected)
+        # self.create_ROI_2.clicked.connect(self.make_roi_selected)
+        self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -218,6 +229,7 @@ class mainwindows(QtWidgets.QWidget):
 
         self.left_layout.addLayout(self.button_layout)
         self.left_layout.addWidget(self.threed_vis,2)
+        self.left_layout.addWidget(self.threshold_slider)
         self.left_layout.addLayout(self.button_layout_2)
         self.left_layout.addWidget(self.bev_widget,2)
 
@@ -226,6 +238,7 @@ class mainwindows(QtWidgets.QWidget):
         # self.right_splitter.addWidget(self.list_widget)
         # self.right_layout.addWidget(self.right_splitter)
 
+        self.right_layout.addWidget(self.checkbox_canvas_mode)
         self.right_layout.addWidget(self.canvas)
         self.right_layout.addWidget(self.list_widget)
         self.right_layout.addWidget(self.delete)
@@ -490,7 +503,7 @@ class mainwindows(QtWidgets.QWidget):
 
         # dialog = QtWidgets.QFileDialog
         # fname = dialog.getOpenFileName(self, 'Open file', os.getcwd())[0]
-        fname = "D:\Programming\Github\\4d-labeller\data\\18.npy"
+        fname = "D:/Programming/Github/4d-labeller/data/18.npy"
         print("Selected file: ", fname)
 
         # print(f"SOMWTHING with {fname}")
@@ -532,6 +545,7 @@ class mainwindows(QtWidgets.QWidget):
                 data = np.load(filename)
                 data = data[::2, ::2, ::2]
                 ptcld, _ = self.pointcloud_coords_generation(frame=data)
+                self.data = data
                 self.pointcloud_data = ptcld
                 self.threed_vis.load_radar_pointcloud()
 
@@ -590,7 +604,7 @@ class mainwindows(QtWidgets.QWidget):
             json.dump(objects_arr, file)
 
         print("annotations saved")
-        return pass
+        pass
 
     def load_annotations(self):
         self.change_status("loading annotations")
@@ -653,10 +667,35 @@ class mainwindows(QtWidgets.QWidget):
         for object in self.objects:
             print("coords: ", object['coord'], " class: ",object["class"] )
 
+    def print_coord_of_GLMESH(self):
+        print(self.selected_objects_idxs)
+        for object_idxs in self.selected_objects_idxs:
+            object = self.objects[object_idxs]["3d_object"]
+            print(object.faces, object)
+
+
+
+    #other functions to move to another libraries
+
+    def changeModeCanvas(self, state):
+        self.change_status(f"state of checkbox has changed to {state == Qt.Checked}")
+        self.canvas.setEditing(value = state)
+
+        return "success"
+
+    def threshold_change(self, value):
+        self.change_status(f"value of threshold slider has changed to {value}")
+        self.threed_vis.change_threshold(value)
+
+    def new_shape_canvas(self):
+        self.change_status(f"new shape created, do something")
+
+    def some_shape_moved(self):
+        self.change_status(f"shape has moved, do something")
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     main_window = mainwindows()
-    # mainwindows.resize(1200,1200)
     main_window.show()
     sys.exit(app.exec())

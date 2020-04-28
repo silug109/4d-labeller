@@ -11,6 +11,7 @@ except ImportError:
 
 # from libs.utils import distance
 import sys
+from math import sqrt
 
 DEFAULT_LINE_COLOR = QColor(0, 255, 0, 128)
 DEFAULT_FILL_COLOR = QColor(255, 0, 0, 128)

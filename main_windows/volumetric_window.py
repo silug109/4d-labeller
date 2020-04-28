@@ -35,6 +35,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         self.current_selected = []
 
+        self.threshold = 0.5
+
 
     def mouseMoveEvent(self, ev):
 
@@ -54,12 +56,12 @@ class Volumetric_widget_2(gl.GLViewWidget):
                     self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "translate mode"]))
                 # self.translate_object(self.parent().selected_boxes, diff.x())
-                self.translate_object(self.current_selected, diff.x())
+                #self.translate_object(self.current_selected, diff.x()) deprecated use mouse wheel
             elif (ev.modifiers() == QtCore.Qt.ShiftModifier):
                 if (self.parent() is not None) and hasattr(self.parent(), "change_status"):
                     self.parent().change_status(
                     ''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y()), "scale mode"]))
-                self.scale_object(self.current_selected, diff.x())
+                #self.scale_object(self.current_selected, diff.x()) deprecated use mouse wheel
 
             else:
                 self.orbit(-diff.x(), diff.y())
@@ -143,6 +145,25 @@ class Volumetric_widget_2(gl.GLViewWidget):
         meshdata_dict = {"meshdata": new_meshdata}
         return meshdata_dict
 
+    def change_threshold(self, value):
+
+        self.threshold = value
+
+        pcd_object = [object for object in self.items if isinstance(object, gl.GLScatterPlotItem) ]
+        print(value, "pcd objects are: ", pcd_object)
+
+        self.removeItem(pcd_object[0])
+
+        data = self.parent().data
+        ptcld,_ = self.pointcloud_coords_generation(data, threshold= self.threshold)
+        pcd_object = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 0, 1, 1), size=1)
+        self.parent().pointcloud_data = ptcld
+        self.addItem(pcd_object)
+
+
+        # object = [object for object in self.parent().objects if object[]]
+
+
     def create_3d_cube(self, pos, size, angle=0):
 
         if len(pos) == 2:
@@ -219,12 +240,14 @@ class Volumetric_widget_2(gl.GLViewWidget):
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
                     item.translate(0,0,-sign/abs(sign)*0.5)
+                    # item.vertexes[...,2] += sign/abs(sign)*0.5
+                    # item.edges[..., 2] += sign/abs(sign)*0.5
             self.update()
 
-    def scale_object(self, object_list ,  sign):
+    def scale_object(self, object_list,  sign):
         if sign != 0 and len(object_list) != 0:
             for item in self.items:
-                if isinstance(item, gl.GLMeshItem)  and (item in object_list):
+                if isinstance(item, gl.GLMeshItem) and (item in object_list):
                     item.scale(1,1,sign/abs(sign)*0.01+1)
             self.update()
 
@@ -307,9 +330,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-
-
-
     mainwindow = QtWidgets.QWidget()
     widg = Volumetric_widget_2(mainwindow)
     widg.create_3d_cube((10,10),(20,20))

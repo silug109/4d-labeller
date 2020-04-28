@@ -729,3 +729,6 @@ class Canvas(QWidget):
 
     def setDrawingShapeToSquare(self, status):
         self.drawSquare = status
+
+
+
