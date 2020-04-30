@@ -55,18 +55,22 @@ class Bev_Canvas_2(pg.GraphicsView):
         # self.bev_widget = pg.GraphicsView(self)
         # self.bev_widget.resize(640,640)
 
-        self.bev_view = pg.ViewBox()
+        self.bev_view = pg.ViewBox(border = {'color': "FF0", "width": 2})
         self.addItem(self.bev_view)
         self.setCentralWidget(self.bev_view)
 
-        y_axis_item = pg.AxisItem('top', showValues=False)
-        y_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
-        y_axis_item.linkToView(self.bev_view)
-        x_axis_item = pg.AxisItem('left', showValues=False)
-        x_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
-        x_axis_item.linkToView(self.bev_view)
+        y_axis_item = pg.AxisItem('top', linkView= self.bev_view, showValues=False)
+        # y_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
+        # y_axis_item.linkToView(self.bev_view)
+        x_axis_item = pg.AxisItem('left', linkView= self.bev_view, showValues=False)
+        # x_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
+        # x_axis_item.linkToView(self.bev_view)
         self.bev_view.addItem(x_axis_item)
         self.bev_view.addItem(y_axis_item)
+
+        y_axis_item.setScale(5)
+        y_axis_item.setRange(0,10)
+
 
         self.dev_mode = dev_mode
         self.currentSelected = []
@@ -174,7 +178,6 @@ class Bev_Canvas_2(pg.GraphicsView):
             else:
                 self.highlight_roi(roi, False)
 
-
     def highlight_roi(self, roi, highlight = True):
 
         if highlight == True:
@@ -194,7 +197,6 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         for roi in rois:
 
-            # print("handles states:",any([handle['item'].isMoving for handle in roi.handles])) #roi.handles
             if roi.isMoving or any([handle['item'].isMoving for handle in roi.handles]):
             # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
                 ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
@@ -273,18 +275,17 @@ class Bev_Canvas_2(pg.GraphicsView):
         print("Creation is success!")
         return bounding_box
 
-
     def synchronize_roi(self, obj_idx):
 
         objects = self.parent().objects
         object = objects[obj_idx]
 
         roi = object["Bev_object"]
-        new_coords = object["coord"]
+        coords = object["coord"]
 
-        roi.setAngle(new_coords["angle"])
-        roi.setPos([new_coords["x"]-new_coords["l"]/2, new_coords["y"] - new_coords["w"]/2])
-        roi.setSize([new_coords["l"],new_coords["w"]])
+        roi.setAngle(coords["angle"])
+        roi.setPos([coords["x"]-coords["l"]/2, coords["y"] - coords["w"]/2])
+        roi.setSize([coords["l"],coords["w"]])
 
 
 

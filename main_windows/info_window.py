@@ -24,6 +24,7 @@ class ListWidg(QtWidgets.QListWidget):
     SigSelectionChanged = QtCore.pyqtSignal(str)
     SigObjectChanged = QtCore.pyqtSignal(int)
     SigObjectDeleted = QtCore.pyqtSignal([list])
+    SigCreateObject = QtCore.pyqtSignal()
 
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,34 +67,51 @@ class ListWidg(QtWidgets.QListWidget):
 
         if hasattr(self,"info_widget"):
             self.new_object = self.info_widget.get_object()
-            print("Old: ",self.object["coord"])
+            # print("Old: ",self.object["coord"])
             self.object["coord"] = self.new_object[1]
             self.object["id"] = self.new_object[0]
-            print("New: ", self.object["coord"])
+            # print("New: ", self.object["coord"])
             #здесь происходит синхронизация, разобраться. апдейтится self.parent().objects[self.obj_idx]
 
             self.WidgetItem.setTextUp(self.new_object[0])
             self.WidgetItem.setTextDown(str(self.new_object[1]))
             self.SigObjectChanged.emit(self.obj_idx)
+        elif hasattr(self, "new_object_widget"):
+            print("WOO HOO new widget and object!!! WOO HOOO")
+            self.new_object = self.new_object_widget.get_object()
+
+            self.WidgetItem.setTextUp(self.new_object[0])
+            self.WidgetItem.setTextDown(str(self.new_object[1]))
+
+            #todo synchronization
+
+            # self.parent().objects.append(object_instance)
+            #
+            # print("ВОТ ЗДЕСЬ ПРОВЕРОЧКА")
+            # self.parent().update_db()
+            #
+            # obj_ind = len(self.parent().objects) - 1
+            #
+            # self.SigBevChange.emit(obj_ind)
+            #
+            # print("Creation is success!")
+            # return bounding_box
+            # self.parent().objects.append
+
         else:
             print("Nothing")
             pass
 
         # self.object.class_combo = self.new_object.class_combo
 
-
     def synchronizeListItem(self, obj_idx):
-        print("debug")
         objects = self.parent().objects
         object = objects[obj_idx]
 
-        print(object)
-
         WidgetItem = object["listwidgetitem"]
-        new_coords = object["coord"]
+        coords = object["coord"]
 
-        print("inside listwidget")
-        WidgetItem.setTextDown(str(new_coords))
+        WidgetItem.setTextDown(str(coords))
         WidgetItem.setTextUp(object["id"])
 
     def update_selection(self):
@@ -130,23 +148,40 @@ class ListWidg(QtWidgets.QListWidget):
         # SigObjectChanged.emit
 
     def create_item(self):
-        myListWidgetObject = QCustomQWidget()
+        myListWidgetObject = QCustomQWidget() # это то, что добавляется после
         # myListWidgetObject.setTextUp(id_instance)
         # myListWidgetObject.setTextDown(str(coord))
         # myListWidgetObject.class_combo.currentIndexChanged.connect(self.change_class)
         myListWidgetObject.SigClassChanged.connect(self.update_class)
 
-        ListWidgetItem = QtWidgets.QListWidgetItem(self)
+        ListWidgetItem = QtWidgets.QListWidgetItem(self)  # это то, что появляется как элемент
         ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
         # self.list_widget.addItem(ListWidgetItem)
         # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
         return myListWidgetObject, ListWidgetItem
 
-    def add_item(self, listwidgetitem, customwidgetitem ):
-        self.addItem(listwidgetitem)
-        self.setItemWidget(listwidgetitem,customwidgetitem)
-        pass
+    # def add_item(self, customwidgetitem, listwidgetitem ):
+    #     self.addItem(listwidgetitem)
+    #     self.setItemWidget(listwidgetitem,customwidgetitem)
 
+
+    def create_new_bb_item(self):
+        ListWidgetObject, ListWidgetItem = self.create_item()
+        self.addItem(ListWidgetItem)
+        self.setItemWidget(ListWidgetItem, ListWidgetObject)
+        # self.addItem(ListWidgetObject, ListWidgetItem)
+
+        # self.WidgetItem = self.currentItem()
+        # print(self.count(), self.item(self.count() - 1 ))
+        self.WidgetItem = self.itemWidget(self.item(self.count() -1))
+        print(ListWidgetObject,ListWidgetItem, self.WidgetItem, list(map(type,[ListWidgetObject,ListWidgetItem, self.WidgetItem])))
+
+        self.object_instance = {}
+        self.object_instance["listwidgetitem"] = ListWidgetObject
+
+        self.new_object_widget = Info_object_widget(coords=None)
+        self.new_object_widget.SigCloseWidget.connect(self.updateItem)
+        self.new_object_widget.show()
 
     def delete_item(self, list_item):
         self.takeItem(self.row(list_item))
@@ -269,15 +304,14 @@ class Info_object_widget(QtWidgets.QWidget):
         self.close()
 
     def get_object(self):
-
         name = self.name.text()
         x = float(self.x_coord.text())
         y = float(self.y_coord.text())
         z = float(self.z_coord.text())
         length = float(self.length_box.text())
-        width =  float(self.width_box.text())
-        depth =  float(self.depth_box.text())
-        angle =  float(self.angle_box.text())
+        width = float(self.width_box.text())
+        depth = float(self.depth_box.text())
+        angle = float(self.angle_box.text())
 
         combo = "Car"
         # combo = self.class_choice
@@ -286,7 +320,7 @@ class Info_object_widget(QtWidgets.QWidget):
         # class_name_idx = self.class_choice.current
 
 
-        return name, {"x": x, "y": y, "z": 5, "l": length, "w": width, "h": depth, "angle": angle}, combo
+        return name, {"x": x, "y": y, "z": z, "l": length, "w": width, "h": depth, "angle": angle}, combo
 
 
 class QCustomQWidget(QtWidgets.QWidget):

@@ -13,6 +13,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
     SigCreate3dObject = pyqtSignal()
     SigSelect3dObject = pyqtSignal(str)
+    SigChanged3dObject = pyqtSignal(int)
 
     def __init__(self, *args, **kwargs):
 
@@ -29,9 +30,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.mousePos = QtCore.QPoint(0,0)
 
         self.setMouseTracking(True)
-
-        self.object_selected_signal = pyqtSignal()
-        self.object_changed_signal = pyqtSignal()
 
         self.current_selected = []
 
@@ -119,7 +117,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         pass
 
     def synchronize_3d_object(self, obj_idx):
-
         objects = self.parent().objects
         object = objects[obj_idx]
 
@@ -146,26 +143,23 @@ class Volumetric_widget_2(gl.GLViewWidget):
         return meshdata_dict
 
     def change_threshold(self, value):
-
         self.threshold = value
 
-        pcd_object = [object for object in self.items if isinstance(object, gl.GLScatterPlotItem) ]
-        print(value, "pcd objects are: ", pcd_object)
-
-        self.removeItem(pcd_object[0])
 
         data = self.parent().data
-        ptcld,_ = self.pointcloud_coords_generation(data, threshold= self.threshold)
-        pcd_object = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 0, 1, 1), size=1)
-        self.parent().pointcloud_data = ptcld
-        self.addItem(pcd_object)
+        if not(data is None):
+            pcd_object = [object for object in self.items if isinstance(object, gl.GLScatterPlotItem)]
 
+            self.removeItem(pcd_object[0])
 
-        # object = [object for object in self.parent().objects if object[]]
-
+            ptcld,_ = self.pointcloud_coords_generation(data, threshold= self.threshold)
+            pcd_object = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 0, 1, 1), size=1)
+            self.parent().pointcloud_data = ptcld
+            self.addItem(pcd_object)
+        else:
+            print("Артем не крути ручки, пока не добавил облака")
 
     def create_3d_cube(self, pos, size, angle=0):
-
         if len(pos) == 2:
             x, y = pos
             l, w = size
@@ -181,6 +175,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         y_bot = y - w / 2
         z_top = z + d/2
         z_bot = z - d/2
+        # Todo check
 
         corners = [[x_top, y_bot, z_bot],
                    [x_bot, y_bot, z_bot],
@@ -239,16 +234,29 @@ class Volumetric_widget_2(gl.GLViewWidget):
         if (sign != 0) and (len(object_list) > 0 ):
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
-                    item.translate(0,0,-sign/abs(sign)*0.5)
-                    # item.vertexes[...,2] += sign/abs(sign)*0.5
-                    # item.edges[..., 2] += sign/abs(sign)*0.5
+                    # item.translate(0,0,-sign/abs(sign)*0.5)
+                    #or
+                    idx = [item["3d_object"] for item in self.parent().objects].index(item)
+                    coords = self.parent().objects[idx]["coord"] # coords in self.parent().object overriding
+                    coords["z"] -= sign/abs(sign)*0.5
+                    meshdata = self.create_meshdata(coords=coords)
+                    item.setMeshData(**meshdata)
+            self.SigChanged3dObject.emit(idx)
             self.update()
 
     def scale_object(self, object_list,  sign):
         if sign != 0 and len(object_list) != 0:
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
-                    item.scale(1,1,sign/abs(sign)*0.01+1)
+                    # item.scale(1,1,sign/abs(sign)*0.01+1)
+                    #or
+                    idx = [item["3d_object"] for item in self.parent().objects].index(item)
+                    coords = self.parent().objects[idx]["coord"]
+                    coords["h"] -= sign / abs(sign) * 0.5
+                    meshdata = self.create_meshdata(coords=coords)
+                    item.setMeshData(**meshdata)
+
+            self.SigChanged3dObject.emit(idx)
             self.update()
 
     def check_data(self):
@@ -258,6 +266,18 @@ class Volumetric_widget_2(gl.GLViewWidget):
         else:
             print("kazhis net")
             return False
+
+    def transform_pointcloud(self, points):
+        # maybe deprecated
+        point_x_max = np.max(points[:, 0])
+        point_y_max = np.max(points[:, 1])
+        point_z_max = np.max(points[:, 2])
+
+        points[:, 0] = points[:, 0] * (self.max_range[0] / point_x_max)
+        points[:, 1] = points[:, 1] * (self.max_range[1] / point_y_max)
+        points[:, 2] = points[:, 2] * (self.max_range[2] / point_z_max)
+
+        return points
 
     def load_radar_pointcloud(self):
 
@@ -292,18 +312,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         ptcld[:, :3] = (ptcld[:, :3] - ptcld[:, :3].min()) / (ptcld[:, :3].max() - ptcld[:, :3].min())
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
         self.addItem(ptcld_qtobject)
-
-    def transform_pointcloud(self, points):
-
-        point_x_max = np.max(points[:, 0])
-        point_y_max = np.max(points[:, 1])
-        point_z_max = np.max(points[:, 2])
-
-        points[:, 0] = points[:, 0] * (self.max_range[0] / point_x_max)
-        points[:, 1] = points[:, 1] * (self.max_range[1] / point_y_max)
-        points[:, 2] = points[:, 2] * (self.max_range[2] / point_z_max)
-
-        return points
 
     def pointcloud_coords_generation(self, frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
         '''

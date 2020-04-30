@@ -98,6 +98,8 @@ class mainwindows(QtWidgets.QWidget):
         self.selected_objects = []
         self.selected_objects_idxs = []
 
+        self.data = None
+
 
         super(mainwindows,self).__init__()
 
@@ -181,6 +183,7 @@ class mainwindows(QtWidgets.QWidget):
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
+        self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets_3d)
 
 
         self.twod = QtWidgets.QPushButton('Load 2d')
@@ -201,7 +204,8 @@ class mainwindows(QtWidgets.QWidget):
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
         # self.create_ROI_2.clicked.connect(self.print_info)
         # self.create_ROI_2.clicked.connect(self.make_roi_selected)
-        self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
+        # self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
+        self.create_ROI_2.clicked.connect(self.print_info_about_object)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -222,6 +226,9 @@ class mainwindows(QtWidgets.QWidget):
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_selected_items)
 
+        self.create_bb = QtWidgets.QPushButton("Create bbox")
+        self.create_bb.clicked.connect(self.list_widget.create_new_bb_item)
+
         self.button_layout_2 = QtWidgets.QHBoxLayout()
         self.button_layout_2.addWidget(self.threed)
         self.button_layout_2.addWidget(self.twod)
@@ -241,7 +248,15 @@ class mainwindows(QtWidgets.QWidget):
         self.right_layout.addWidget(self.checkbox_canvas_mode)
         self.right_layout.addWidget(self.canvas)
         self.right_layout.addWidget(self.list_widget)
-        self.right_layout.addWidget(self.delete)
+
+        self.right_button_layout = QtWidgets.QHBoxLayout()
+        self.right_button_layout.addWidget(self.delete)
+        self.right_button_layout.addWidget(self.create_bb)
+        self.right_layout.addLayout(self.right_button_layout)
+        #or
+        # self.right_layout.addWidget(self.delete)
+
+
 
         self.left_layout.addWidget(self.statusbar)
 
@@ -493,8 +508,6 @@ class mainwindows(QtWidgets.QWidget):
             roi.setPen(pen)
             # roi.setSelected(False)
 
-
-
     # Menu functions
     # FILE MENU
     def open_file(self):
@@ -570,10 +583,10 @@ class mainwindows(QtWidgets.QWidget):
         #     data = f.read()
         #     self.textEdit.setText(data)
         pass
-
+    def open_files(self):
+        pass
 
     #Transform menu
-
     def load_calib(self):
         self.change_status("loading calib")
         print("loading calib")
@@ -582,7 +595,6 @@ class mainwindows(QtWidgets.QWidget):
         fname = dialog.getOpenFileNames(self, 'Open file', os.getcwd())
 
         pass
-
     #Annotation menu
     def save_annotations(self):
         self.change_status("saving annotations")
@@ -671,7 +683,15 @@ class mainwindows(QtWidgets.QWidget):
         print(self.selected_objects_idxs)
         for object_idxs in self.selected_objects_idxs:
             object = self.objects[object_idxs]["3d_object"]
-            print(object.faces, object)
+            print(object.vertexes, object)
+
+    def print_info_about_object(self):
+
+        print(self.selected_objects_idxs)
+        for object_idxs in self.selected_objects_idxs:
+            object = self.objects[object_idxs]
+            print(object)
+            print()
 
 
 
