@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 
 import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtGui, QtCore
+from libs.visualization import pointcloud_coords_generation
 import sys
 import numpy as np
 
@@ -31,13 +32,20 @@ class Bev_Canvas_2(pg.GraphicsView):
     drawingPolygon = pyqtSignal(bool)
 
     SigBevChange = pyqtSignal(int)
+    SigBevCreate = pyqtSignal()
+    SigBevDelete = pyqtSignal()
+    SigBevSelect = pyqtSignal()
 
     CREATE, EDIT = list(range(2))
+
+
 
     epsilon = 11.0
 
     def __init__(self, dev_mode = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.objects = self.parent().objects
     #     # Initialise local state.
     #     self.mode = self.EDIT
     #     self.shapes = []
@@ -60,90 +68,46 @@ class Bev_Canvas_2(pg.GraphicsView):
         self.setCentralWidget(self.bev_view)
 
         y_axis_item = pg.AxisItem('top', linkView= self.bev_view, showValues=False)
-        # y_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
-        # y_axis_item.linkToView(self.bev_view)
         x_axis_item = pg.AxisItem('left', linkView= self.bev_view, showValues=False)
-        # x_axis_item.setStyle(tickTextHeight=1, tickTextWidth=1)
-        # x_axis_item.linkToView(self.bev_view)
         self.bev_view.addItem(x_axis_item)
         self.bev_view.addItem(y_axis_item)
 
         y_axis_item.setScale(5)
         y_axis_item.setRange(0,10)
 
-
         self.dev_mode = dev_mode
         self.currentSelected = []
 
         # self.load_radar()
 
-        # self.visible = {}
-        # self._hideBackround = False
-        # self.hideBackround = False
-        # self.hShape = None
-        # self.hVertex = None
-        # self._painter = QPainter()
-        # self._cursor = CURSOR_DEFAULT
-        # Menus:
-        # self.menus = (QMenu(), QMenu())
-        # Set widget options.
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.WheelFocus)
-        # self.verified = False
-        # self.drawSquare = False
-    #
-    # def enterEvent(self, ev):
-    #     self.overrideCursor(self._cursor)
-    #
-    # def leaveEvent(self, ev):
-    #     self.restoreCursor()
-    #
-    # def focusOutEvent(self, ev):
-    #     self.restoreCursor()
-    #
-    # def isVisible(self, shape):
-    #     return self.visible.get(shape, True)
-    #
-    # def drawing(self):
-    #     return self.mode == self.CREATE
-    #
-    # def editing(self):
-    #     return self.mode == self.EDIT
-    #
-    # def setEditing(self, value=True):
-    #     self.mode = self.EDIT if value else self.CREATE
-    #     if not value:  # Create
-    #         self.unHighlight()
-    #         self.deSelectShape()
-    #     self.prevPoint = QPointF()
-    #     self.repaint()
 
-
-    def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
-        '''
-        :param frame: (config.size[1], size[2], config.size[3])
-        :return: ndarray(num_points, 4)
-        '''
-        R = np.arange(0, range_max, range_max / frame.shape[0])
-        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
-        epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
-
-        theta_sin = np.sin(theta * np.pi / 180)
-        theta_cos = np.cos(theta * np.pi / 180)
-        epsilon_sin = np.sin(epsilon * np.pi / 180)
-        epsilon_cos = np.cos(epsilon * np.pi / 180)
-
-        tup_coord = np.nonzero(frame > threshold)
-
-        x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-        y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-        z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
-
-        points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
-
-        points_cord = np.array(points)
-        colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
-        return points_cord, colors_arr
+    # def pointcloud_coords_generation(self,frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
+    #     '''
+    #     :param frame: (config.size[1], size[2], config.size[3])
+    #     :return: ndarray(num_points, 4)
+    #     '''
+    #     R = np.arange(0, range_max, range_max / frame.shape[0])
+    #     theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+    #     epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
+    #
+    #     theta_sin = np.sin(theta * np.pi / 180)
+    #     theta_cos = np.cos(theta * np.pi / 180)
+    #     epsilon_sin = np.sin(epsilon * np.pi / 180)
+    #     epsilon_cos = np.cos(epsilon * np.pi / 180)
+    #
+    #     tup_coord = np.nonzero(frame > threshold)
+    #
+    #     x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    #     y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    #     z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+    #
+    #     points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+    #
+    #     points_cord = np.array(points)
+    #     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
+    #     return points_cord, colors_arr
 
     def load_radar(self):
         bev_item = pg.ScatterPlotItem()
@@ -158,18 +122,10 @@ class Bev_Canvas_2(pg.GraphicsView):
     def load_bev_project(self):
         data = np.load('data/18.npy')
         data = data[::2, ::2, ::2]
-        ptcld, _ = self.pointcloud_coords_generation(frame=data)
+        ptcld, _ = pointcloud_coords_generation(frame=data)
         xy = ptcld[:,0:2]
 
         return xy
-
-    # def unHighlight(self):
-    #     if self.hShape:
-    #         self.hShape.highlightClear()
-    #     self.hVertex = self.hShape = None
-    #
-    # def selectedVertex(self):
-    #     return self.hVertex is not None
 
     def highlight_selected(self):
         for roi in self.bev_view.addedItems:
@@ -218,6 +174,7 @@ class Bev_Canvas_2(pg.GraphicsView):
     def update_object_db(self, object_ind):
 
         object = self.parent().objects[object_ind]
+        # object = self.objects[object_ind]
 
         bev_object = object["Bev_object"]
         x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
@@ -250,11 +207,28 @@ class Bev_Canvas_2(pg.GraphicsView):
         for item in self.bev_view.addedItems:
             print(item)
 
-    def create_ROI(self):
+    def update_object(self,object):
+        # object = self.objects[-1]
+        coords = object["coord"]
+        x,y,l,w,angle = coords["x"],coords["y"],coords["l"],coords["w"],coords["angle"]
+        bounding_box = self.create_ROI_instance(pos = [x,y], size = [l,w], angle = angle)
+        self.bev_view.addItem(bounding_box)
+        object["Bev_object"] = bounding_box
 
-        bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
+
+    def create_ROI_instance(self, pos = [10,10], size = [20,20], angle = 0):
+        bounding_box = pg.RectROI(pos, size, angle = angle, centered=True, sideScalers=True)
         bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
         bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+        return bounding_box
+
+    def create_ROI(self):
+        #todo rewrite
+        # bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
+        # bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+        # bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+
+        bounding_box = self.create_ROI_instance()
 
         class_box = "Cat"
 
@@ -266,7 +240,8 @@ class Bev_Canvas_2(pg.GraphicsView):
         self.parent().objects.append(object_instance)
 
         print("ВОТ ЗДЕСЬ ПРОВЕРОЧКА")
-        self.parent().update_db()
+        self.parent().true_update_db()
+        # self.parent().update_db()
 
         obj_ind = len(self.parent().objects)-1
 

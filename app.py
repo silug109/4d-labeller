@@ -13,38 +13,39 @@ import json
 
 from PIL import Image
 
+from libs.visualization import pointcloud_coords_generation
 
-def pointcloud_coords_generation(frame, range_max = 67, azimuth_range_max = 57, elevation_max = 16, threshold = 0.5):
-    '''
-    Generate poincloud coordinates, points color list from tensor contatining positional information of 3d scene
-    :param
-    frame: np.ndarray (config.size[1], size[2], config.size[3])
-    range_max: int max range in meters for radar(should be config info)
-    azimuth_range_max: int max azimuth in degrees for radar(should be in config info)
-    elevation_max:int max elevation in degrees for radar(should be in  config info)
-    :return: ndarray(num_points, 4)
-    '''
-
-    R = np.arange(0, range_max, range_max / frame.shape[0])
-    theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
-    epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
-
-    theta_sin = np.sin(theta * np.pi / 180)
-    theta_cos = np.cos(theta * np.pi / 180)
-    epsilon_sin = np.sin(epsilon * np.pi / 180)
-    epsilon_cos = np.cos(epsilon * np.pi / 180)
-
-    tup_coord = np.nonzero(frame > threshold)
-
-    x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-    y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-    z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
-
-    points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
-    points_cord = np.array(points)
-    colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
-
-    return points_cord, colors_arr
+# def pointcloud_coords_generation(frame, range_max = 67, azimuth_range_max = 57, elevation_max = 16, threshold = 0.5):
+#     '''
+#     Generate poincloud coordinates, points color list from tensor contatining positional information of 3d scene
+#     :param
+#     frame: np.ndarray (config.size[1], size[2], config.size[3])
+#     range_max: int max range in meters for radar(should be config info)
+#     azimuth_range_max: int max azimuth in degrees for radar(should be in config info)
+#     elevation_max:int max elevation in degrees for radar(should be in  config info)
+#     :return: ndarray(num_points, 4)
+#     '''
+#
+#     R = np.arange(0, range_max, range_max / frame.shape[0])
+#     theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+#     epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
+#
+#     theta_sin = np.sin(theta * np.pi / 180)
+#     theta_cos = np.cos(theta * np.pi / 180)
+#     epsilon_sin = np.sin(epsilon * np.pi / 180)
+#     epsilon_cos = np.cos(epsilon * np.pi / 180)
+#
+#     tup_coord = np.nonzero(frame > threshold)
+#
+#     x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+#     y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+#     z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+#
+#     points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+#     points_cord = np.array(points)
+#     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
+#
+#     return points_cord, colors_arr
 
 def euler_to_so3(rpy):
     '''
@@ -99,7 +100,6 @@ class mainwindows(QtWidgets.QWidget):
         self.selected_objects_idxs = []
 
         self.data = None
-
 
         super(mainwindows,self).__init__()
 
@@ -177,6 +177,7 @@ class mainwindows(QtWidgets.QWidget):
 
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
         self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
+        # self.bev_widget.
         # self.bev_widget.SigBevSelect.connect()
 
         #buttons
@@ -199,11 +200,11 @@ class mainwindows(QtWidgets.QWidget):
         # self.sync.clicked.connect(self.update_3d_boxes)
 
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
-        self.create_ROI_but.clicked.connect(self.bev_widget.create_ROI)
+        # self.create_ROI_but.clicked.connect(self.bev_widget.create_ROI)
+        self.create_ROI_but.clicked.connect(self.create_obj_main)
 
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
         # self.create_ROI_2.clicked.connect(self.print_info)
-        # self.create_ROI_2.clicked.connect(self.make_roi_selected)
         # self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
         self.create_ROI_2.clicked.connect(self.print_info_about_object)
 
@@ -222,6 +223,7 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
         self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
+        self.list_widget.SigCreateObject.connect(self.list_object_created)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_selected_items)
@@ -408,6 +410,40 @@ class mainwindows(QtWidgets.QWidget):
     def update_one_object_db(self, object_ind):
         pass
 
+
+    def true_update_db(self):
+        # должен вызываться после создания в одном из виджетов объекта.
+
+        # object = self.objects[idx]
+        # or
+        object = self.objects[-1]
+
+        idx = len(self.objects)-1
+
+        # # self.db_fields = ["coord", "class","Bev_object","3d_object", "id", "listwidgetitem", "listitem", "IsSelected"]
+        # self.db_fields = ["Bev_object", "3d_object","listitem"]
+        # # for field in self.db_fields:
+        # #     if sel
+        #
+        if object.get("Bev_object") is None:
+            print("Update db in bev widget")
+            self.bev_widget.update_object(object)
+            print(object)
+        if object.get("3d_object") is None:
+            print("Update db in 3d widget")
+            self.threed_vis.update_object(object)
+            print(object)
+        if object.get("listitem") is None:
+            print("update in list widget")
+            self.list_widget.update_object(object)
+        print(object)
+        pass
+
+    def create_obj_main(self):
+        self.objects.append({"coord":{"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}, "id":"shit"})
+        self.true_update_db()
+
+
     def update_db(self):
 
         print("всего объектов: ", len(self.objects))
@@ -435,7 +471,7 @@ class mainwindows(QtWidgets.QWidget):
         # ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
         # ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
 
-        self.list_widget.add_item(ListWidgetItem, myListWidgetObject)
+        self.list_widget.add_item(item = ListWidgetItem, item_object= myListWidgetObject)
         # self.list_widget.addItem(ListWidgetItem)
         # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
         #Todo change adding of listitem
@@ -451,6 +487,39 @@ class mainwindows(QtWidgets.QWidget):
         self.objects[ind] = item
 
         print("INIT: ",self.objects[ind])
+
+    def list_object_created(self):
+
+        self.new_object = self.list_widget.object_instance
+        print(f"inside main workflow, got {self.new_object['coord']}")
+        print(self.new_object)
+
+        coord = self.new_object['coord']
+        x,y,z,l,w,h,angle = coord["x"],coord["y"],coord["z"],coord["l"],coord["w"],coord["h"],coord["angle"]
+        print(x,y,z,l,w,h,angle)
+
+        x, y, z = x + l / 2, y + w / 2, z + h/2
+
+        cubegl_object = self.threed_vis.create_3d_cube([x, y, z], [l, w, h], angle)
+        self.threed_vis.addItem(cubegl_object)
+
+        bounding_box = pg.RectROI([x, y], [l, w], angle =  angle ,centered=True, sideScalers=True)
+        bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+        bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+        self.bev_widget.bev_view.addItem(bounding_box)
+
+
+        item = self.new_object
+        item["3d_object"] = cubegl_object
+        item["Bev_object"] = bounding_box
+        # item["id"] = id_instance
+        # item["listwidgetitem"] = myListWidgetObject
+        # item["listitem"] = ListWidgetItem
+        item["IsSelected"] = False
+
+        self.objects.append(item)
+        pass
+
 
     def delete_objects_from_db(self, value):
 
@@ -501,12 +570,6 @@ class mainwindows(QtWidgets.QWidget):
         self.bev_widget.synchronize_roi(obj_idx)
         self.list_widget.synchronizeListItem(obj_idx)
         # print(self.objects[obj_idx])
-
-    def make_roi_selected(self):
-        pen = (0, 255, 0)
-        for roi in self.bev_widget.bev_view.addedItems:
-            roi.setPen(pen)
-            # roi.setSelected(False)
 
     # Menu functions
     # FILE MENU
@@ -716,6 +779,7 @@ class mainwindows(QtWidgets.QWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
+    # pg.dbg()
     main_window = mainwindows()
     main_window.show()
     sys.exit(app.exec())

@@ -8,12 +8,14 @@ import sys
 import numpy as np
 import pyqtgraph.opengl as gl
 
+from libs.visualization import pointcloud_coords_generation
 
 class Volumetric_widget_2(gl.GLViewWidget):
 
     SigCreate3dObject = pyqtSignal()
     SigSelect3dObject = pyqtSignal(str)
     SigChanged3dObject = pyqtSignal(int)
+    SigDelete3dObject = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
 
@@ -34,6 +36,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.current_selected = []
 
         self.threshold = 0.5
+
+        self.objects = self.parent().objects
 
 
     def mouseMoveEvent(self, ev):
@@ -112,9 +116,18 @@ class Volumetric_widget_2(gl.GLViewWidget):
         else:
             super().wheelEvent(ev)
 
-    def update3dObject(self):
-        #change
-        pass
+
+
+    def update_object(self,object):
+        # object = self.objects[-1]
+        coord = object["coord"]
+        # class_name = object["class"]
+        x, y, z, l, w, h, angle = coord["x"], coord["y"], coord["z"], coord["l"], coord["w"], coord["h"], coord["angle"]
+        x, y, z = x + l / 2, y + w / 2, z + h / 2
+        cubegl_object = self.create_3d_cube([x, y, z], [l, w, h], angle)
+        self.addItem(cubegl_object)
+        object["3d_object"] = cubegl_object
+        # return object
 
     def synchronize_3d_object(self, obj_idx):
         objects = self.parent().objects
@@ -145,14 +158,13 @@ class Volumetric_widget_2(gl.GLViewWidget):
     def change_threshold(self, value):
         self.threshold = value
 
-
         data = self.parent().data
         if not(data is None):
             pcd_object = [object for object in self.items if isinstance(object, gl.GLScatterPlotItem)]
 
             self.removeItem(pcd_object[0])
 
-            ptcld,_ = self.pointcloud_coords_generation(data, threshold= self.threshold)
+            ptcld,_ = pointcloud_coords_generation(data, threshold= self.threshold)
             pcd_object = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 0, 1, 1), size=1)
             self.parent().pointcloud_data = ptcld
             self.addItem(pcd_object)
@@ -286,7 +298,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         else:
             data = np.load('data/18.npy')
             data = data[::2, ::2, ::2]
-            ptcld, _ = self.pointcloud_coords_generation(frame=data)
+            ptcld, _ = pointcloud_coords_generation(frame=data)
 
         # ptcld = self.transform_pointcloud(ptcld)
 
@@ -313,28 +325,28 @@ class Volumetric_widget_2(gl.GLViewWidget):
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
         self.addItem(ptcld_qtobject)
 
-    def pointcloud_coords_generation(self, frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
-        '''
-        :param frame: (config.size[1], size[2], config.size[3])
-        :return: ndarray(num_points, 4)
-        '''
-        R = np.arange(0, range_max, range_max / frame.shape[0])
-        theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
-        epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
-
-        theta_sin = np.sin(theta * np.pi / 180)
-        theta_cos = np.cos(theta * np.pi / 180)
-        epsilon_sin = np.sin(epsilon * np.pi / 180)
-        epsilon_cos = np.cos(epsilon * np.pi / 180)
-
-        tup_coord = np.nonzero(frame > threshold)
-        x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-        y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-        z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
-        points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
-        points_cord = np.array(points)
-        colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
-        return points_cord, colors_arr
+    # def pointcloud_coords_generation(self, frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
+    #     '''
+    #     :param frame: (config.size[1], size[2], config.size[3])
+    #     :return: ndarray(num_points, 4)
+    #     '''
+    #     R = np.arange(0, range_max, range_max / frame.shape[0])
+    #     theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
+    #     epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
+    #
+    #     theta_sin = np.sin(theta * np.pi / 180)
+    #     theta_cos = np.cos(theta * np.pi / 180)
+    #     epsilon_sin = np.sin(epsilon * np.pi / 180)
+    #     epsilon_cos = np.cos(epsilon * np.pi / 180)
+    #
+    #     tup_coord = np.nonzero(frame > threshold)
+    #     x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    #     y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
+    #     z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
+    #     points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
+    #     points_cord = np.array(points)
+    #     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
+    #     return points_cord, colors_arr
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

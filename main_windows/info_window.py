@@ -31,6 +31,8 @@ class ListWidg(QtWidgets.QListWidget):
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.current_selected = []
 
+        self.objects = self.parent().objects
+
 
     def mouseDoubleClickEvent(self, ev: QtGui.QMouseEvent) -> None:
 
@@ -62,6 +64,24 @@ class ListWidg(QtWidgets.QListWidget):
         # else:
         #     self.current_selected = self.selectedItems()
 
+    def update_object(self, object):
+        coords = object["coord"]
+        id = object["id"]
+        ListWidgetItemObject, ListWidgetItem = self.create_item()
+        ListWidgetItemObject.setTextUp(id)
+        ListWidgetItemObject.setTextDown(str(coords))
+
+        self.add_item(ListWidgetItem,ListWidgetItemObject)
+
+        object["listwidgetitem"] = ListWidgetItemObject
+        object["listitem"] = ListWidgetItem
+
+        # return object
+
+
+
+
+
     def updateItem(self):
         print("Is info_widget exist:", hasattr(self, "info_widget"))
 
@@ -83,6 +103,12 @@ class ListWidg(QtWidgets.QListWidget):
             self.WidgetItem.setTextUp(self.new_object[0])
             self.WidgetItem.setTextDown(str(self.new_object[1]))
 
+            self.object_instance["coord"] = self.new_object[1]
+            self.object_instance["class"] = self.new_object[2]
+            self.SigCreateObject.emit()
+
+            # print("written inside update func, should be second")
+
             #todo synchronization
 
             # self.parent().objects.append(object_instance)
@@ -103,6 +129,7 @@ class ListWidg(QtWidgets.QListWidget):
             pass
 
         # self.object.class_combo = self.new_object.class_combo
+
 
     def synchronizeListItem(self, obj_idx):
         objects = self.parent().objects
@@ -160,9 +187,9 @@ class ListWidg(QtWidgets.QListWidget):
         # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
         return myListWidgetObject, ListWidgetItem
 
-    # def add_item(self, customwidgetitem, listwidgetitem ):
-    #     self.addItem(listwidgetitem)
-    #     self.setItemWidget(listwidgetitem,customwidgetitem)
+    def add_item(self, item, item_object):
+        self.addItem(item)
+        self.setItemWidget(item,item_object)
 
 
     def create_new_bb_item(self):
@@ -174,14 +201,16 @@ class ListWidg(QtWidgets.QListWidget):
         # self.WidgetItem = self.currentItem()
         # print(self.count(), self.item(self.count() - 1 ))
         self.WidgetItem = self.itemWidget(self.item(self.count() -1))
-        print(ListWidgetObject,ListWidgetItem, self.WidgetItem, list(map(type,[ListWidgetObject,ListWidgetItem, self.WidgetItem])))
 
         self.object_instance = {}
         self.object_instance["listwidgetitem"] = ListWidgetObject
+        self.object_instance["listitem"] = ListWidgetItem
 
         self.new_object_widget = Info_object_widget(coords=None)
         self.new_object_widget.SigCloseWidget.connect(self.updateItem)
         self.new_object_widget.show()
+
+        print("test is written inside create_new_bb should be first")
 
     def delete_item(self, list_item):
         self.takeItem(self.row(list_item))
