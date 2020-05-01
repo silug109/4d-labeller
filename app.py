@@ -223,7 +223,8 @@ class mainwindows(QtWidgets.QWidget):
         self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
         self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
-        self.list_widget.SigCreateObject.connect(self.list_object_created)
+        # self.list_widget.SigCreateObject.connect(self.list_object_created)
+        self.list_widget.SigCreateObject.connect(self.true_update_db)
 
         self.delete = QtWidgets.QPushButton('Delete selected')
         self.delete.clicked.connect(self.delete_selected_items)

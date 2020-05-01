@@ -80,7 +80,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
             #TODO разобраться с наследованием функций
 
     def mousePressEvent(self, ev):
-
         if ev.buttons() == Qt.LeftButton:
             if  ev.modifiers() == QtCore.Qt.ShiftModifier:
                 print("режим множественного выделения")
@@ -92,27 +91,27 @@ class Volumetric_widget_2(gl.GLViewWidget):
                             self.current_selected.discard(object)
                         else:
                             self.current_selected.add(object)
-
-                # self.objects_selected.update(set(new_objects))
-                # self.highlight_object()
             else:
                 new_selected_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1])
 
                 self.current_selected = set([object for object in new_selected_objects if isinstance(object, gl.GLMeshItem)])
-                # self.highlight_object()
 
         self.SigSelect3dObject.emit("3d")
         self.highlight_object()
-                # self.update_global_selection()
 
     def wheelEvent(self, ev):
         delta = ev.angleDelta()
         delta_value = delta.y()/120
 
         if ev.modifiers() == QtCore.Qt.ShiftModifier:
+            print(delta, delta_value)
             self.scale_object(self.current_selected, delta_value)
         elif ev.modifiers() == QtCore.Qt.ControlModifier:
+            print(delta, delta_value)
             self.translate_object(self.current_selected, delta_value)
+        elif ev.modifiers() == QtCore.Qt.AltModifier:
+            delta_value = delta.x() / 120
+            self.rotate_object(self.current_selected, delta_value)
         else:
             super().wheelEvent(ev)
 
@@ -123,7 +122,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         coord = object["coord"]
         # class_name = object["class"]
         x, y, z, l, w, h, angle = coord["x"], coord["y"], coord["z"], coord["l"], coord["w"], coord["h"], coord["angle"]
-        x, y, z = x + l / 2, y + w / 2, z + h / 2
+        # x, y, z = x + l / 2, y + w / 2, z + h / 2
         cubegl_object = self.create_3d_cube([x, y, z], [l, w, h], angle)
         self.addItem(cubegl_object)
         object["3d_object"] = cubegl_object
@@ -248,8 +247,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
                     # item.translate(0,0,-sign/abs(sign)*0.5)
                     #or
-                    idx = [item["3d_object"] for item in self.parent().objects].index(item)
-                    coords = self.parent().objects[idx]["coord"] # coords in self.parent().object overriding
+                    idx = [item["3d_object"] for item in self.objects].index(item)
+                    coords = self.objects[idx]["coord"] # coords in self.parent().object overriding
                     coords["z"] -= sign/abs(sign)*0.5
                     meshdata = self.create_meshdata(coords=coords)
                     item.setMeshData(**meshdata)
@@ -262,12 +261,25 @@ class Volumetric_widget_2(gl.GLViewWidget):
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
                     # item.scale(1,1,sign/abs(sign)*0.01+1)
                     #or
-                    idx = [item["3d_object"] for item in self.parent().objects].index(item)
-                    coords = self.parent().objects[idx]["coord"]
+                    idx = [item["3d_object"] for item in self.objects].index(item)
+                    coords = self.objects[idx]["coord"]
                     coords["h"] -= sign / abs(sign) * 0.5
                     meshdata = self.create_meshdata(coords=coords)
                     item.setMeshData(**meshdata)
 
+            self.SigChanged3dObject.emit(idx)
+            self.update()
+
+    def rotate_object(self, object_list,  sign):
+        if sign != 0 and len(object_list) != 0:
+            for item in self.items:
+                if isinstance(item, gl.GLMeshItem) and (item in object_list):
+                    idx = [item["3d_object"] for item in self.objects].index(item)
+                    coords = self.objects[idx]["coord"]
+                    coords["angle"] -= sign / abs(sign) * 10
+                    coords["angle"]  = coords["angle"]%360
+                    meshdata = self.create_meshdata(coords=coords)
+                    item.setMeshData(**meshdata)
             self.SigChanged3dObject.emit(idx)
             self.update()
 
@@ -324,6 +336,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
         ptcld[:, :3] = (ptcld[:, :3] - ptcld[:, :3].min()) / (ptcld[:, :3].max() - ptcld[:, :3].min())
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
         self.addItem(ptcld_qtobject)
+
+3
 
     # def pointcloud_coords_generation(self, frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
     #     '''

@@ -155,7 +155,7 @@ class Bev_Canvas_2(pg.GraphicsView):
 
             if roi.isMoving or any([handle['item'].isMoving for handle in roi.handles]):
             # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
-                ind = [item["Bev_object"] for item in self.parent().objects].index(roi)
+                ind = [item["Bev_object"] for item in self.objects].index(roi)
                 self.update_object_db(ind)
 
             # self.parent().update_3d_boxes()
@@ -178,7 +178,7 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         bev_object = object["Bev_object"]
         x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
-        x, y = x + l / 2, y + w / 2 #RECT ROI x,y - left bottom points though move it to logical center
+        # x, y = x + l / 2, y + w / 2 #RECT ROI x,y - left bottom points though move it to logical center
         #TODO координаты меняются при поворотах
 
         coord = {"x": x, "y": y, "z": 5, "l": l, "w": w, "h": 10, "angle": angle}
@@ -197,11 +197,11 @@ class Bev_Canvas_2(pg.GraphicsView):
         # list_object.setTextUp(object["id"])
         # list_object.setTextDown(str(coord))
 
-    def create_meshdata(self, x,y, l, w, angle):
-        cubegl = self.parent().create_3d_cube([x, y], [l, w], angle)
-        new_meshdata = cubegl.opts["meshdata"]
-        meshdata_dict = {"meshdata": new_meshdata}
-        return meshdata_dict
+    # def create_meshdata(self, x,y, l, w, angle):
+    #     cubegl = self.parent().create_3d_cube([x, y], [l, w], angle)
+    #     new_meshdata = cubegl.opts["meshdata"]
+    #     meshdata_dict = {"meshdata": new_meshdata}
+    #     return meshdata_dict
 
     def reset(self):
         for item in self.bev_view.addedItems:
@@ -224,16 +224,9 @@ class Bev_Canvas_2(pg.GraphicsView):
 
     def create_ROI(self):
         #todo rewrite
-        # bounding_box = pg.RectROI([10, 10], [20, 20], centered=True, sideScalers=True)
-        # bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
-        # bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-
         bounding_box = self.create_ROI_instance()
-
         class_box = "Cat"
-
         self.bev_view.addItem(bounding_box)
-
         object_instance = {}
         object_instance["Bev_object"] = bounding_box
 
@@ -243,11 +236,11 @@ class Bev_Canvas_2(pg.GraphicsView):
         self.parent().true_update_db()
         # self.parent().update_db()
 
-        obj_ind = len(self.parent().objects)-1
+        # obj_ind = len(self.parent().objects)-1
+        #
+        # self.SigBevChange.emit(obj_ind)
 
-        self.SigBevChange.emit(obj_ind)
-
-        print("Creation is success!")
+        # print("Creation is success!")
         return bounding_box
 
     def synchronize_roi(self, obj_idx):

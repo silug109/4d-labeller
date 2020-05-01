@@ -76,11 +76,6 @@ class ListWidg(QtWidgets.QListWidget):
         object["listwidgetitem"] = ListWidgetItemObject
         object["listitem"] = ListWidgetItem
 
-        # return object
-
-
-
-
 
     def updateItem(self):
         print("Is info_widget exist:", hasattr(self, "info_widget"))
@@ -98,31 +93,17 @@ class ListWidg(QtWidgets.QListWidget):
             self.SigObjectChanged.emit(self.obj_idx)
         elif hasattr(self, "new_object_widget"):
             print("WOO HOO new widget and object!!! WOO HOOO")
-            self.new_object = self.new_object_widget.get_object()
+            object_info = self.new_object_widget.get_object()
 
-            self.WidgetItem.setTextUp(self.new_object[0])
-            self.WidgetItem.setTextDown(str(self.new_object[1]))
+            self.WidgetItem.setTextUp(object_info[0])
+            self.WidgetItem.setTextDown(str(object_info[1]))
 
-            self.object_instance["coord"] = self.new_object[1]
-            self.object_instance["class"] = self.new_object[2]
+            self.object_instance["coord"] = object_info[1]
+            self.object_instance["class"] = object_info[2]
+
+            self.objects.append(self.object_instance)
+
             self.SigCreateObject.emit()
-
-            # print("written inside update func, should be second")
-
-            #todo synchronization
-
-            # self.parent().objects.append(object_instance)
-            #
-            # print("ВОТ ЗДЕСЬ ПРОВЕРОЧКА")
-            # self.parent().update_db()
-            #
-            # obj_ind = len(self.parent().objects) - 1
-            #
-            # self.SigBevChange.emit(obj_ind)
-            #
-            # print("Creation is success!")
-            # return bounding_box
-            # self.parent().objects.append
 
         else:
             print("Nothing")
@@ -130,10 +111,9 @@ class ListWidg(QtWidgets.QListWidget):
 
         # self.object.class_combo = self.new_object.class_combo
 
-
     def synchronizeListItem(self, obj_idx):
-        objects = self.parent().objects
-        object = objects[obj_idx]
+        # objects = self.parent().objects
+        object = self.objects[obj_idx]
 
         WidgetItem = object["listwidgetitem"]
         coords = object["coord"]
@@ -191,8 +171,10 @@ class ListWidg(QtWidgets.QListWidget):
         self.addItem(item)
         self.setItemWidget(item,item_object)
 
-
     def create_new_bb_item(self):
+        # todo change naming to common idea
+
+
         ListWidgetObject, ListWidgetItem = self.create_item()
         self.addItem(ListWidgetItem)
         self.setItemWidget(ListWidgetItem, ListWidgetObject)
