@@ -10,8 +10,12 @@ from PyQt5 import QtWidgets
 import os
 import glob
 import json
+import copy
 
 from PIL import Image
+
+from libs.shape import Shape
+
 
 from libs.visualization import pointcloud_coords_generation
 
@@ -96,7 +100,6 @@ class mainwindows(QtWidgets.QWidget):
 
         self.choose_file = False
 
-        self.selected_objects = []
         self.selected_objects_idxs = []
 
         self.data = None
@@ -173,10 +176,17 @@ class mainwindows(QtWidgets.QWidget):
         self.canvas.newShape.connect(self.new_shape_canvas)
         self.canvas.shapeMoved.connect(self.some_shape_moved)
 
+        self.canvas_shape_create = QtWidgets.QPushButton("create shape")
+        self.canvas_shape_create.clicked.connect(self.create_new_shape_canvas)
+
+        self.canvas_shape_change = QtWidgets.QPushButton("change shape")
+        self.canvas_shape_change.clicked.connect(self.change_canvas_shape)
+
 
 
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
-        self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
+        # self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
+        self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets)
         # self.bev_widget.
         # self.bev_widget.SigBevSelect.connect()
 
@@ -184,7 +194,8 @@ class mainwindows(QtWidgets.QWidget):
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
-        self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets_3d)
+        # self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets_3d)
+        self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets)
 
 
         self.twod = QtWidgets.QPushButton('Load 2d')
@@ -200,7 +211,6 @@ class mainwindows(QtWidgets.QWidget):
         # self.sync.clicked.connect(self.update_3d_boxes)
 
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
-        # self.create_ROI_but.clicked.connect(self.bev_widget.create_ROI)
         self.create_ROI_but.clicked.connect(self.create_obj_main)
 
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
@@ -220,7 +230,8 @@ class mainwindows(QtWidgets.QWidget):
         self.button_layout_2.addWidget(self.camera)
 
         self.list_widget = ListWidg(self) # widget for info visualisation about boxes
-        self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
+        # self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
+        self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
         self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
         # self.list_widget.SigCreateObject.connect(self.list_object_created)
@@ -249,6 +260,8 @@ class mainwindows(QtWidgets.QWidget):
         # self.right_layout.addWidget(self.right_splitter)
 
         self.right_layout.addWidget(self.checkbox_canvas_mode)
+        self.right_layout.addWidget(self.canvas_shape_create)
+        self.right_layout.addWidget(self.canvas_shape_change)
         self.right_layout.addWidget(self.canvas)
         self.right_layout.addWidget(self.list_widget)
 
@@ -319,10 +332,10 @@ class mainwindows(QtWidgets.QWidget):
             self.list_widget.update_selection()
 
             self.bev_widget.currentSelected = [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]
+            print("im here")
             self.bev_widget.highlight_selected()
 
             print(self.selected_objects_idxs)
-
 
         if source == "list":
 
@@ -444,7 +457,6 @@ class mainwindows(QtWidgets.QWidget):
         self.objects.append({"coord":{"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}, "id":"shit"})
         self.true_update_db()
 
-
     def update_db(self):
 
         print("всего объектов: ", len(self.objects))
@@ -548,32 +560,43 @@ class mainwindows(QtWidgets.QWidget):
 
             print("Во время удаления их становится: ", len(self.objects))
 
-    def update_all_widgets(self):
-        pass
+    def synchronize_all_widgets(self, obj_idx):
+        object = self.objects[obj_idx]
 
-    def synchronize_all_widgets_bev(self, obj_idx):
-        print("inside synchronization")
-        self.threed_vis.synchronize_3d_object(obj_idx)
-        print("3d visualization:success")
-        # self.bev_widget.synchronize_roi(obj_idx)
-        self.list_widget.synchronizeListItem(obj_idx)
-        print("list visualization:success")
-        # print(self.objects[obj_idx])
+        self.bev_widget.synchronize_object(object)
+        self.threed_vis.synchronize_3d_object(object)
+        self.list_widget.synchronizeListItem(object)
+        self.test_all_objects_are_same()
 
-    def synchronize_all_widgets_list(self, obj_idx):
-        print("Изменение в ",obj_idx, " объекте в ListWidget")
-        self.threed_vis.synchronize_3d_object(obj_idx)
-        self.bev_widget.synchronize_roi(obj_idx)
-        # print(self.objects[obj_idx])
+    # def synchronize_all_widgets_bev(self, obj_idx):
+    #     object = self.objects[obj_idx]
+    #
+    #     print("inside synchronization")
+    #     self.threed_vis.synchronize_3d_object(object)
+    #     # self.threed_vis.update_object(self.objects[obj_idx])
+    #     print("3d visualization:success")
+    #     self.list_widget.synchronizeListItem(object) # работает по правильному принципу, название уебищное
+    #     print("list visualization:success")
+    #
+    #     self.test_all_objects_are_same()
 
-    def synchronize_all_widgets_3d(self, obj_idx):
-        # self.threed_vis.synchronize_3d_object(obj_idx)
-        self.bev_widget.synchronize_roi(obj_idx)
-        self.list_widget.synchronizeListItem(obj_idx)
-        # print(self.objects[obj_idx])
+    # def synchronize_all_widgets_list(self, obj_idx):
+    #     object = self.objects[obj_idx]
+    #     self.threed_vis.synchronize_3d_object(object)
+    #     self.bev_widget.synchronize_object(object)
+    #     self.test_all_objects_are_same()
+
+    # def synchronize_all_widgets_3d(self, obj_idx):
+    #     object = self.objects[obj_idx]
+    #     self.bev_widget.synchronize_object(object)
+    #     # self.bev_widget.update_object(self.objects[obj_idx])
+    #     self.list_widget.synchronizeListItem(object)
+    #     # print(self.objects[obj_idx])
+    #     self.test_all_objects_are_same()
 
     # Menu functions
     # FILE MENU
+
     def open_file(self):
         self.change_status("opening file")
         print("opening file")
@@ -750,14 +773,19 @@ class mainwindows(QtWidgets.QWidget):
             print(object.vertexes, object)
 
     def print_info_about_object(self):
-
-        print(self.selected_objects_idxs)
-        for object_idxs in self.selected_objects_idxs:
-            object = self.objects[object_idxs]
-            print(object)
-            print()
+        print(len(self.canvas.shapes),self.canvas.shapes)
 
 
+    def test_all_objects_are_same(self):
+        objects_bev = copy.copy(self.bev_widget.objects)
+        objects_3d = copy.copy(self.threed_vis.objects)
+        objects_listwidget = copy.copy(self.list_widget.objects)
+        objects_original = copy.copy(self.objects)
+        # print("bev: ", objects_bev)
+        # print("3d: ",objects_3d)
+        # print("list: ",objects_listwidget)
+        # print("original:", objects_original)
+        print("are equal:", objects_original == objects_listwidget == objects_3d == objects_bev)
 
     #other functions to move to another libraries
 
@@ -772,10 +800,94 @@ class mainwindows(QtWidgets.QWidget):
         self.threed_vis.change_threshold(value)
 
     def new_shape_canvas(self):
+        shape = self.canvas.shapes[-1]
+        corners = [(item.x(), item.y()) for item in shape.points]
+        width = abs(corners[0][0] - corners[1][0])
+        height = abs(corners[0][1] - corners[2][1])
+        cx  = corners[0][0] + width/2
+        cy = corners[0][1] + height/2
+        print(width, height)
+
+        default_length = 10
+        default_angle = 0
+
+        coords = {"x":0, "y": cx, "z": cy, "l": default_length, "w":width , "h": height, "angle":default_angle}
+
+
+
+        object_instance = {}
+        object_instance["Canvas_shape"] = shape
+        object_instance["coord"] = coords
+        object_instance["id"] = "shit"
+        self.objects.append(object_instance)
+        self.true_update_db()
+        #
+        #
+        # print(len(self.canvas.shapes), self.canvas.shapes)
+        # for shape in self.canvas.shapes:
+        #     print(shape.points)
         self.change_status(f"new shape created, do something")
+
+    def create_new_shape_canvas(self):
+        pos = [100,100]
+        size = [50,50]
+        left_corner_1 = QPoint(pos[0]-size[0]/2, pos[1] - size[1]/2)
+        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
+        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
+        right_corner_2 = QPoint(pos[0] + size[0]/2, pos[1] + size[1]/2)
+
+
+        shape_instance  = Shape()
+        shape_instance.addPoint(left_corner_1)
+        shape_instance.addPoint(right_corner_1)
+        shape_instance.addPoint(right_corner_2)
+        shape_instance.addPoint(left_corner_2)
+
+        self.canvas.shapes.append(shape_instance)
+        shape_instance.close()
+        self.canvas.setHiding(False)
+        self.canvas.newShape.emit()
+        self.canvas.update()
+
+    def change_canvas_shape(self):
+        shape = self.canvas.shapes[-1]
+
+        pos = [150, 150]
+        size = [50, 50]
+        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
+        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
+        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
+        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
+
+        shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
+        self.canvas.update()
+
+    def synchronize_canvas_shape(self, object):
+
+        shape = object["Canvas_shape"]
+        coords = object["coord"]
+
+        pos = [150, 150]
+        size = [50, 50]
+        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
+        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
+        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
+        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
+
+
+        shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
+        self.canvas.update()
+
+    def highlight_select(self):
+
+
+
+
+
 
     def some_shape_moved(self):
         self.change_status(f"shape has moved, do something")
+
 
 
 if __name__ == '__main__':

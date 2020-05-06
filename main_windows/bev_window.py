@@ -46,6 +46,8 @@ class Bev_Canvas_2(pg.GraphicsView):
         super().__init__(*args, **kwargs)
 
         self.objects = self.parent().objects
+        self.selected_objects_idxs = self.parent().selected_objects_idxs
+
     #     # Initialise local state.
     #     self.mode = self.EDIT
     #     self.shapes = []
@@ -109,33 +111,19 @@ class Bev_Canvas_2(pg.GraphicsView):
     #     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
     #     return points_cord, colors_arr
 
-    def load_radar(self):
-        bev_item = pg.ScatterPlotItem()
-        bev_item.setData(pos=self.load_bev_project())
 
-        # self.addItem(self.bev_view)
-
-        # self.bev_widget.addItem(self.bev_view)
-        self.setCentralWidget((self.bev_view))
-        self.bev_view.addItem(bev_item)
-
-    def load_bev_project(self):
-        data = np.load('data/18.npy')
-        data = data[::2, ::2, ::2]
-        ptcld, _ = pointcloud_coords_generation(frame=data)
-        xy = ptcld[:,0:2]
-
-        return xy
 
     def highlight_selected(self):
         for roi in self.bev_view.addedItems:
-            if roi in self.currentSelected:
+            # if roi in self.currentSelected:
+            if roi in [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]:
+                print("in")
                 self.highlight_roi(roi,True)
             else:
+                print("not in")
                 self.highlight_roi(roi, False)
 
     def highlight_roi(self, roi, highlight = True):
-
         if highlight == True:
             pen = (0, 255, 0)
         else:
@@ -152,28 +140,13 @@ class Bev_Canvas_2(pg.GraphicsView):
         rois = [item for item in self.bev_view.addedItems if isinstance(item,pg.RectROI)]
 
         for roi in rois:
-
             if roi.isMoving or any([handle['item'].isMoving for handle in roi.handles]):
-            # print("pos:", roi.pos()[0]," ",roi.pos()[1]," size: ", roi.size()[0], " ", roi.size()[1], " angle ", roi.angle())
                 ind = [item["Bev_object"] for item in self.objects].index(roi)
                 self.update_object_db(ind)
 
-            # self.parent().update_3d_boxes()
-
-                # if self.dev_mode == "Main":
-                #     ind =  [item["Bev_object"] for item in self.parent().objects].index(roi)
-                #     print(ind)
-                #     # ind =  [number for number,item in enumerate(self.parent().objects) if item["Bev_object"] == roi]
-                #     if len(ind) != 0:
-                #         self.update_object_db(ind[0])
-                #
-                #         self.parent().update_3d_boxes()
-                #         # self.parent().update_list_widget()
-            #TODO логику синхронизации переписать
-
     def update_object_db(self, object_ind):
 
-        object = self.parent().objects[object_ind]
+        object = self.objects[object_ind]
         # object = self.objects[object_ind]
 
         bev_object = object["Bev_object"]
@@ -183,38 +156,42 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         coord = {"x": x, "y": y, "z": 5, "l": l, "w": w, "h": 10, "angle": angle}
         object["coord"] = coord
-        self.parent().objects[object_ind] = object
+        self.objects[object_ind] = object
 
         self.SigBevChange.emit(object_ind)
-
-        # object_3d = object["3d_object"]
-        #
-        # meshdata = self.create_meshdata(x,y, l, w, angle)
-        # object_3d.setMeshData(**meshdata)
-        #
-        # list_object = object["listwidgetitem"]
-        #
-        # list_object.setTextUp(object["id"])
-        # list_object.setTextDown(str(coord))
-
-    # def create_meshdata(self, x,y, l, w, angle):
-    #     cubegl = self.parent().create_3d_cube([x, y], [l, w], angle)
-    #     new_meshdata = cubegl.opts["meshdata"]
-    #     meshdata_dict = {"meshdata": new_meshdata}
-    #     return meshdata_dict
 
     def reset(self):
         for item in self.bev_view.addedItems:
             print(item)
 
     def update_object(self,object):
-        # object = self.objects[-1]
         coords = object["coord"]
         x,y,l,w,angle = coords["x"],coords["y"],coords["l"],coords["w"],coords["angle"]
         bounding_box = self.create_ROI_instance(pos = [x,y], size = [l,w], angle = angle)
         self.bev_view.addItem(bounding_box)
         object["Bev_object"] = bounding_box
 
+        # #alternative
+        # objects = self.parent().objects
+        # object = objects[obj_idx]
+        # roi = object["Bev_object"]
+        # coords = object["coord"]
+        # roi.setAngle(coords["angle"])
+        # # roi.setPos([coords["x"]-coords["l"]/2, coords["y"] - coords["w"]/2])
+        # roi.setPos([coords["x"], coords["y"]])
+        # roi.setSize([coords["l"], coords["w"]])
+
+    def synchronize_object(self, object):
+        # objects = self.parent().objects
+        # object = objects[obj_idx]
+
+        roi = object["Bev_object"]
+        coords = object["coord"]
+
+        roi.setAngle(coords["angle"])
+        # roi.setPos([coords["x"]-coords["l"]/2, coords["y"] - coords["w"]/2])
+        roi.setPos([coords["x"], coords["y"]])
+        roi.setSize([coords["l"],coords["w"]])
 
     def create_ROI_instance(self, pos = [10,10], size = [20,20], angle = 0):
         bounding_box = pg.RectROI(pos, size, angle = angle, centered=True, sideScalers=True)
@@ -222,40 +199,34 @@ class Bev_Canvas_2(pg.GraphicsView):
         bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
         return bounding_box
 
-    def create_ROI(self):
-        #todo rewrite
-        bounding_box = self.create_ROI_instance()
+    def create_ROI(self, pos = [10,10], size = [20,20], angle = 0):
+        bounding_box = self.create_ROI_instance(pos, size, angle)
         class_box = "Cat"
         self.bev_view.addItem(bounding_box)
         object_instance = {}
         object_instance["Bev_object"] = bounding_box
 
-        self.parent().objects.append(object_instance)
+        self.objects.append(object_instance)
 
-        print("ВОТ ЗДЕСЬ ПРОВЕРОЧКА")
         self.parent().true_update_db()
-        # self.parent().update_db()
+        # return bounding_box
 
-        # obj_ind = len(self.parent().objects)-1
-        #
-        # self.SigBevChange.emit(obj_ind)
+    def load_radar(self):
+        bev_item = pg.ScatterPlotItem()
+        bev_item.setData(pos=self.load_bev_project())
 
-        # print("Creation is success!")
-        return bounding_box
+        # self.addItem(self.bev_view)
 
-    def synchronize_roi(self, obj_idx):
+        # self.bev_widget.addItem(self.bev_view)
+        self.setCentralWidget((self.bev_view))
+        self.bev_view.addItem(bev_item)
 
-        objects = self.parent().objects
-        object = objects[obj_idx]
-
-        roi = object["Bev_object"]
-        coords = object["coord"]
-
-        roi.setAngle(coords["angle"])
-        roi.setPos([coords["x"]-coords["l"]/2, coords["y"] - coords["w"]/2])
-        roi.setSize([coords["l"],coords["w"]])
-
-
+    def load_bev_project(self):
+        data = np.load('data/18.npy')
+        data = data[::2, ::2, ::2]
+        ptcld, _ = pointcloud_coords_generation(frame=data)
+        xy = ptcld[:, 0:2]
+        return xy
 
     # def mouseDragEvent(self, ev):
     #     super().mouseDragEvent(ev)
@@ -782,8 +753,6 @@ class Bev_Canvas_2(pg.GraphicsView):
     #
     # def setDrawingShapeToSquare(self, status):
     #     self.drawSquare = status
-
-
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

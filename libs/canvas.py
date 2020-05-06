@@ -17,6 +17,8 @@ CURSOR_DRAW = Qt.CrossCursor
 CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
 
+from math import sqrt
+
 # class Canvas(QGLWidget):
 
 def distance(p):

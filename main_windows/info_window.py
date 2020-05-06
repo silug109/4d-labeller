@@ -32,10 +32,9 @@ class ListWidg(QtWidgets.QListWidget):
         self.current_selected = []
 
         self.objects = self.parent().objects
-
+        self.selected_object_idxs = self.parent().selected_objects_idxs
 
     def mouseDoubleClickEvent(self, ev: QtGui.QMouseEvent) -> None:
-
         super().mouseDoubleClickEvent(ev)
 
         self.item_chosen = self.itemAt(ev.x(),ev.y())
@@ -111,9 +110,9 @@ class ListWidg(QtWidgets.QListWidget):
 
         # self.object.class_combo = self.new_object.class_combo
 
-    def synchronizeListItem(self, obj_idx):
+    def synchronizeListItem(self, object):
         # objects = self.parent().objects
-        object = self.objects[obj_idx]
+        # object = self.objects[obj_idx]
 
         WidgetItem = object["listwidgetitem"]
         coords = object["coord"]

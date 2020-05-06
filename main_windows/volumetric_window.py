@@ -38,6 +38,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
         self.threshold = 0.5
 
         self.objects = self.parent().objects
+        self.selected_object_idxs = self.parent().selected_objects_idxs
 
 
     def mouseMoveEvent(self, ev):
@@ -81,6 +82,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
     def mousePressEvent(self, ev):
         if ev.buttons() == Qt.LeftButton:
+            # selected_objects = [self.objects[idx]["3d_object"] for idx in self.selected_object_idxs]
             if  ev.modifiers() == QtCore.Qt.ShiftModifier:
                 print("режим множественного выделения")
                 new_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1,1])
@@ -91,6 +93,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
                             self.current_selected.discard(object)
                         else:
                             self.current_selected.add(object)
+                        # if object in []
             else:
                 new_selected_objects = self.itemsAt([ev.pos().x(), ev.pos().y(), 1, 1])
 
@@ -104,10 +107,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
         delta_value = delta.y()/120
 
         if ev.modifiers() == QtCore.Qt.ShiftModifier:
-            print(delta, delta_value)
             self.scale_object(self.current_selected, delta_value)
         elif ev.modifiers() == QtCore.Qt.ControlModifier:
-            print(delta, delta_value)
             self.translate_object(self.current_selected, delta_value)
         elif ev.modifiers() == QtCore.Qt.AltModifier:
             delta_value = delta.x() / 120
@@ -128,14 +129,14 @@ class Volumetric_widget_2(gl.GLViewWidget):
         object["3d_object"] = cubegl_object
         # return object
 
-    def synchronize_3d_object(self, obj_idx):
-        objects = self.parent().objects
-        object = objects[obj_idx]
+    def synchronize_3d_object(self, object):
+        # objects = self.parent().objects
+        # object = objects[obj_idx]
 
         object_3d = object["3d_object"]
         new_coords = object["coord"]
 
-        print("new cords inside of threedvis: ", str(new_coords))
+        # print("new cords inside of threedvis: ", str(new_coords))
 
         meshdata = self.create_meshdata(coords = new_coords)
         object_3d.setMeshData(**meshdata)
