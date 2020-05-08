@@ -50,8 +50,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         if (self.parent() is not None) and hasattr(self.parent(),"change_status"):
             self.parent().change_status(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())]))
-        # else:
-        #     print(''.join(["event in 3d widget:", str(ev.pos().x()), " ", str(ev.pos().y())," ", str(diff.x())]))
 
         if ev.buttons() == QtCore.Qt.LeftButton:
             if (ev.modifiers() == QtCore.Qt.ControlModifier):
@@ -119,7 +117,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
 
     def update_object(self,object):
-        # object = self.objects[-1]
         coord = object["coord"]
         # class_name = object["class"]
         x, y, z, l, w, h, angle = coord["x"], coord["y"], coord["z"], coord["l"], coord["w"], coord["h"], coord["angle"]
@@ -181,12 +178,18 @@ class Volumetric_widget_2(gl.GLViewWidget):
             x,y,z = pos
             l,w,d = size
 
-        x_top = x + l / 2
-        x_bot = x - l / 2
-        y_top = y + w / 2
-        y_bot = y - w / 2
-        z_top = z + d/2
-        z_bot = z - d/2
+        # x_top = x + l / 2
+        # x_bot = x - l / 2
+        # y_top = y + w / 2
+        # y_bot = y - w / 2
+        # z_top = z + d/2
+        # z_bot = z - d/2
+        x_top = x + l
+        x_bot = x
+        y_top = y + w
+        y_bot = y
+        z_top = z + d
+        z_bot = z
         # Todo check
 
         corners = [[x_top, y_bot, z_bot],
@@ -204,13 +207,13 @@ class Volumetric_widget_2(gl.GLViewWidget):
                                          , [-np.sin(angle), np.cos(angle), 0]
                                          , [0, 0, 1]])
 
-        corners[:, 0] -= x - l / 2
-        corners[:, 1] -= y - w / 2
+        # corners[:, 0] -= x - l / 2
+        # corners[:, 1] -= y - w / 2
 
         corners = corners.dot(Rotational_matrix)
 
-        corners[:, 0] += x - l / 2
-        corners[:, 1] += y - w / 2
+        # corners[:, 0] += x - l / 2
+        # corners[:, 1] += y - w / 2
 
         vertexes = np.array([[1, 0, 0],  # 0
                              [0, 0, 0],  # 1
@@ -337,31 +340,6 @@ class Volumetric_widget_2(gl.GLViewWidget):
         ptcld[:, :3] = (ptcld[:, :3] - ptcld[:, :3].min()) / (ptcld[:, :3].max() - ptcld[:, :3].min())
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
         self.addItem(ptcld_qtobject)
-
-3
-
-    # def pointcloud_coords_generation(self, frame, range_max=67, azimuth_range_max=57, elevation_max=16, threshold = 0.5):
-    #     '''
-    #     :param frame: (config.size[1], size[2], config.size[3])
-    #     :return: ndarray(num_points, 4)
-    #     '''
-    #     R = np.arange(0, range_max, range_max / frame.shape[0])
-    #     theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
-    #     epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
-    #
-    #     theta_sin = np.sin(theta * np.pi / 180)
-    #     theta_cos = np.cos(theta * np.pi / 180)
-    #     epsilon_sin = np.sin(epsilon * np.pi / 180)
-    #     epsilon_cos = np.cos(epsilon * np.pi / 180)
-    #
-    #     tup_coord = np.nonzero(frame > threshold)
-    #     x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-    #     y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-    #     z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
-    #     points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
-    #     points_cord = np.array(points)
-    #     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
-    #     return points_cord, colors_arr
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

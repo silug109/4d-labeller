@@ -181,20 +181,18 @@ class mainwindows(QtWidgets.QWidget):
 
         self.canvas_shape_change = QtWidgets.QPushButton("change shape")
         self.canvas_shape_change.clicked.connect(self.change_canvas_shape)
+        self.canvas.shapeMoved.connect(self.print_info_if_shape_moved)
 
 
 
         self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
-        # self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets_bev)
         self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets)
-        # self.bev_widget.
-        # self.bev_widget.SigBevSelect.connect()
+        self.bev_widget.SigBevCreate.connect(self.true_update_db)
 
         #buttons
         self.threed = QtWidgets.QPushButton('Load 3d')
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
-        # self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets_3d)
         self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets)
 
 
@@ -450,56 +448,58 @@ class mainwindows(QtWidgets.QWidget):
         if object.get("listitem") is None:
             print("update in list widget")
             self.list_widget.update_object(object)
+        if object.get("Canvas_object") is None:
+            print("update in canvas")
+            self.update_canvas_shape(object)
         print(object)
-        pass
 
     def create_obj_main(self):
         self.objects.append({"coord":{"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}, "id":"shit"})
         self.true_update_db()
 
-    def update_db(self):
-
-        print("всего объектов: ", len(self.objects))
-
-        ind = len(self.objects) - 1
-        item = self.objects[-1]
-
-        bev_object = item["Bev_object"]
-        x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
-        x, y = x + l / 2, y + w / 2
-        cubegl_object = self.threed_vis.create_3d_cube([x, y], [l, w], angle)
-        self.threed_vis.addItem(cubegl_object)
-
-        coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10, "angle": angle}
-        class_instance = "Cat"
-        id_instance = "some_id"
-
-
-        myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
-
-        # myListWidgetObject = QCustomQWidget()
-        myListWidgetObject.setTextUp(id_instance)
-        myListWidgetObject.setTextDown(str(coord))
-
-        # ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
-        # ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
-
-        self.list_widget.add_item(item = ListWidgetItem, item_object= myListWidgetObject)
-        # self.list_widget.addItem(ListWidgetItem)
-        # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
-        #Todo change adding of listitem
-
-        item["coord"] = coord
-        item["class"] = class_instance
-        item["3d_object"] = cubegl_object
-        item["id"] = id_instance
-        item["listwidgetitem"] = myListWidgetObject
-        item["listitem"] = ListWidgetItem
-        item["IsSelected"] = False
-
-        self.objects[ind] = item
-
-        print("INIT: ",self.objects[ind])
+    # def update_db(self):
+    #
+    #     print("всего объектов: ", len(self.objects))
+    #
+    #     ind = len(self.objects) - 1
+    #     item = self.objects[-1]
+    #
+    #     bev_object = item["Bev_object"]
+    #     x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
+    #     x, y = x + l / 2, y + w / 2
+    #     cubegl_object = self.threed_vis.create_3d_cube([x, y], [l, w], angle)
+    #     self.threed_vis.addItem(cubegl_object)
+    #
+    #     coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10, "angle": angle}
+    #     class_instance = "Cat"
+    #     id_instance = "some_id"
+    #
+    #
+    #     myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
+    #
+    #     # myListWidgetObject = QCustomQWidget()
+    #     myListWidgetObject.setTextUp(id_instance)
+    #     myListWidgetObject.setTextDown(str(coord))
+    #
+    #     # ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
+    #     # ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
+    #
+    #     self.list_widget.add_item(item = ListWidgetItem, item_object= myListWidgetObject)
+    #     # self.list_widget.addItem(ListWidgetItem)
+    #     # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
+    #     #Todo change adding of listitem
+    #
+    #     item["coord"] = coord
+    #     item["class"] = class_instance
+    #     item["3d_object"] = cubegl_object
+    #     item["id"] = id_instance
+    #     item["listwidgetitem"] = myListWidgetObject
+    #     item["listitem"] = ListWidgetItem
+    #     item["IsSelected"] = False
+    #
+    #     self.objects[ind] = item
+    #
+    #     print("INIT: ",self.objects[ind])
 
     def list_object_created(self):
 
@@ -566,33 +566,8 @@ class mainwindows(QtWidgets.QWidget):
         self.bev_widget.synchronize_object(object)
         self.threed_vis.synchronize_3d_object(object)
         self.list_widget.synchronizeListItem(object)
+        self.synchronize_canvas_shape(object)
         self.test_all_objects_are_same()
-
-    # def synchronize_all_widgets_bev(self, obj_idx):
-    #     object = self.objects[obj_idx]
-    #
-    #     print("inside synchronization")
-    #     self.threed_vis.synchronize_3d_object(object)
-    #     # self.threed_vis.update_object(self.objects[obj_idx])
-    #     print("3d visualization:success")
-    #     self.list_widget.synchronizeListItem(object) # работает по правильному принципу, название уебищное
-    #     print("list visualization:success")
-    #
-    #     self.test_all_objects_are_same()
-
-    # def synchronize_all_widgets_list(self, obj_idx):
-    #     object = self.objects[obj_idx]
-    #     self.threed_vis.synchronize_3d_object(object)
-    #     self.bev_widget.synchronize_object(object)
-    #     self.test_all_objects_are_same()
-
-    # def synchronize_all_widgets_3d(self, obj_idx):
-    #     object = self.objects[obj_idx]
-    #     self.bev_widget.synchronize_object(object)
-    #     # self.bev_widget.update_object(self.objects[obj_idx])
-    #     self.list_widget.synchronizeListItem(object)
-    #     # print(self.objects[obj_idx])
-    #     self.test_all_objects_are_same()
 
     # Menu functions
     # FILE MENU
@@ -775,7 +750,6 @@ class mainwindows(QtWidgets.QWidget):
     def print_info_about_object(self):
         print(len(self.canvas.shapes),self.canvas.shapes)
 
-
     def test_all_objects_are_same(self):
         objects_bev = copy.copy(self.bev_widget.objects)
         objects_3d = copy.copy(self.threed_vis.objects)
@@ -799,6 +773,8 @@ class mainwindows(QtWidgets.QWidget):
         self.change_status(f"value of threshold slider has changed to {value}")
         self.threed_vis.change_threshold(value)
 
+
+
     def new_shape_canvas(self):
         shape = self.canvas.shapes[-1]
         corners = [(item.x(), item.y()) for item in shape.points]
@@ -806,17 +782,15 @@ class mainwindows(QtWidgets.QWidget):
         height = abs(corners[0][1] - corners[2][1])
         cx  = corners[0][0] + width/2
         cy = corners[0][1] + height/2
-        print(width, height)
+        # print(width, height)
 
         default_length = 10
         default_angle = 0
 
         coords = {"x":0, "y": cx, "z": cy, "l": default_length, "w":width , "h": height, "angle":default_angle}
 
-
-
         object_instance = {}
-        object_instance["Canvas_shape"] = shape
+        object_instance["Canvas_object"] = shape
         object_instance["coord"] = coords
         object_instance["id"] = "shit"
         self.objects.append(object_instance)
@@ -828,6 +802,33 @@ class mainwindows(QtWidgets.QWidget):
         #     print(shape.points)
         self.change_status(f"new shape created, do something")
 
+    def update_canvas_shape(self, object):
+        coords = object["coord"]
+        x, y, z, l, w, h, angle = coords.values()
+        pos = [y, z]
+        size = [w, h]
+        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
+        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
+        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
+        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
+
+        shape_instance = Shape()
+        shape_instance.addPoint(left_corner_1)
+        shape_instance.addPoint(right_corner_1)
+        shape_instance.addPoint(right_corner_2)
+        shape_instance.addPoint(left_corner_2)
+
+        self.canvas.shapes.append(shape_instance)
+        shape_instance.close()
+        self.canvas.setHiding(False)
+        # self.canvas.newShape.emit()
+        self.canvas.update()
+
+        object["Canvas_object"] = shape_instance
+
+
+
+
     def create_new_shape_canvas(self):
         pos = [100,100]
         size = [50,50]
@@ -835,7 +836,6 @@ class mainwindows(QtWidgets.QWidget):
         left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
         right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
         right_corner_2 = QPoint(pos[0] + size[0]/2, pos[1] + size[1]/2)
-
 
         shape_instance  = Shape()
         shape_instance.addPoint(left_corner_1)
@@ -849,41 +849,45 @@ class mainwindows(QtWidgets.QWidget):
         self.canvas.newShape.emit()
         self.canvas.update()
 
-    def change_canvas_shape(self):
-        shape = self.canvas.shapes[-1]
+    def print_info_if_shape_moved(self):
+        for shape in self.canvas.shapes:
+            self.change_canvas_shape(shape)
+        self.change_status("shape moved")
 
-        pos = [150, 150]
-        size = [50, 50]
-        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
-        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
-        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
-        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
-
-        shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
-        self.canvas.update()
+    def change_canvas_shape(self, shape):
+        shape_coords = shape.points
+        y = (shape_coords[0].x() + shape_coords[2].x())/2
+        z = (shape_coords[0].y() + shape_coords[2].y())/2
+        width = (shape_coords[0].x() - shape_coords[2].x())/ 2
+        height = (shape_coords[0].y() - shape_coords[2].y()) / 2
+        object = [object for object in self.objects if object["Canvas_object"] == shape][0]
+        print("object:", object)
+        print("objects:", self.objects)
+        obj_idx = self.objects.index(object)
+        coords = object["coord"]
+        coords["y"] = y
+        coords["z"] = z
+        coords["w"] = width
+        coords["h"] = height
+        self.synchronize_all_widgets(obj_idx= obj_idx)
 
     def synchronize_canvas_shape(self, object):
-
-        shape = object["Canvas_shape"]
+        shape = object["Canvas_object"]
         coords = object["coord"]
-
-        pos = [150, 150]
-        size = [50, 50]
+        x,y,z,l,w,h,angle = coords.values()
+        pos = [y, z]
+        size = [w, h]
         left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
         left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
         right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
         right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
-
-
         shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
         self.canvas.update()
 
-    def highlight_select(self):
-
-
-
-
-
+    def highlight_select(self, object):
+        shape = object["Canvas_object"]
+        self.canvas.selectShape(shape)
+        self.canvas.repaint()
 
     def some_shape_moved(self):
         self.change_status(f"shape has moved, do something")
