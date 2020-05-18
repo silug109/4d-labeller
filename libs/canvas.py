@@ -18,6 +18,8 @@ CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
 
 from math import sqrt
+import sys
+import numpy as np
 
 # class Canvas(QGLWidget):
 
@@ -733,4 +735,44 @@ class Canvas(QWidget):
         self.drawSquare = status
 
 
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    mainwindow = QWidget()
+    widg = Canvas(mainwindow)
+
+    null_image = np.zeros((340, 480, 3))
+    null_image[30:340, 320:340, :] = 240
+
+    null_Qimage = QImage(null_image, null_image.shape[1], \
+                               null_image.shape[0], null_image.shape[1] * 3, QImage.Format_RGB888)
+    null_pixmap = QPixmap(null_Qimage)
+    widg.loadPixmap(null_pixmap)
+    widg.mode = widg.CREATE
+
+    but_1 = QPushButton("button_1")
+    # but_1.clicked.connect(widg.highlight_object)
+    but_2 = QPushButton("button_2")
+    but_3 = QPushButton("button_3")
+
+    info_text = QLabel("hoho")
+    # list_box = QtWidgets.QListWidget()
+    # list_box.setBaseSize(200, 300)
+
+    button_layout = QHBoxLayout()
+    button_layout.addWidget(but_1)
+    button_layout.addWidget(but_2)
+    button_layout.addWidget(but_3)
+
+    main_layout = QVBoxLayout()
+    main_layout.addLayout(button_layout)
+    main_layout.addWidget(widg, 3)
+    main_layout.addWidget(info_text)
+    # main_layout.addWidget(list_box)
+
+    mainwindow.setLayout(main_layout)
+    mainwindow.resize(1200, 1200)
+
+    mainwindow.show()
+
+    sys.exit(app.exec())
 

@@ -16,40 +16,10 @@ from PIL import Image
 
 from libs.shape import Shape
 
+from math import cos,sin,pi,tan
 
 from libs.visualization import pointcloud_coords_generation
 
-# def pointcloud_coords_generation(frame, range_max = 67, azimuth_range_max = 57, elevation_max = 16, threshold = 0.5):
-#     '''
-#     Generate poincloud coordinates, points color list from tensor contatining positional information of 3d scene
-#     :param
-#     frame: np.ndarray (config.size[1], size[2], config.size[3])
-#     range_max: int max range in meters for radar(should be config info)
-#     azimuth_range_max: int max azimuth in degrees for radar(should be in config info)
-#     elevation_max:int max elevation in degrees for radar(should be in  config info)
-#     :return: ndarray(num_points, 4)
-#     '''
-#
-#     R = np.arange(0, range_max, range_max / frame.shape[0])
-#     theta = np.arange(-azimuth_range_max, azimuth_range_max, 2 * azimuth_range_max / frame.shape[1])
-#     epsilon = np.arange(0, elevation_max, elevation_max / frame.shape[2])
-#
-#     theta_sin = np.sin(theta * np.pi / 180)
-#     theta_cos = np.cos(theta * np.pi / 180)
-#     epsilon_sin = np.sin(epsilon * np.pi / 180)
-#     epsilon_cos = np.cos(epsilon * np.pi / 180)
-#
-#     tup_coord = np.nonzero(frame > threshold)
-#
-#     x = np.expand_dims((R[tup_coord[0]] * theta_cos[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-#     y = np.expand_dims((R[tup_coord[0]] * theta_sin[tup_coord[1]] * epsilon_cos[tup_coord[2]]), 1)
-#     z = np.expand_dims((R[tup_coord[0]] * epsilon_sin[tup_coord[2]]), 1)
-#
-#     points = np.concatenate((x, y, z, np.expand_dims(frame[tup_coord], 1)), axis=1)
-#     points_cord = np.array(points)
-#     colors_arr = np.swapaxes(np.vstack((points_cord[:, 3], points_cord[:, 3], points_cord[:, 3])) / 255, 0, 1)
-#
-#     return points_cord, colors_arr
 
 def euler_to_so3(rpy):
     '''
@@ -180,7 +150,8 @@ class mainwindows(QtWidgets.QWidget):
         self.canvas_shape_create.clicked.connect(self.create_new_shape_canvas)
 
         self.canvas_shape_change = QtWidgets.QPushButton("change shape")
-        self.canvas_shape_change.clicked.connect(self.change_canvas_shape)
+        # self.canvas_shape_change.clicked.connect(self.change_canvas_shape)
+        self.canvas_shape_change.clicked.connect(self.make_shape_unvisible)
         self.canvas.shapeMoved.connect(self.print_info_if_shape_moved)
 
 
@@ -194,6 +165,9 @@ class mainwindows(QtWidgets.QWidget):
         self.threed.clicked.connect(self.threed_vis.load_radar_pointcloud)
         self.threed_vis.SigSelect3dObject.connect(self.update_selection)
         self.threed_vis.SigChanged3dObject.connect(self.synchronize_all_widgets)
+
+        cam_object = self.create_camera_view_vis()
+        self.threed_vis.addItem(cam_object)
 
 
         self.twod = QtWidgets.QPushButton('Load 2d')
@@ -214,7 +188,8 @@ class mainwindows(QtWidgets.QWidget):
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
         # self.create_ROI_2.clicked.connect(self.print_info)
         # self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
-        self.create_ROI_2.clicked.connect(self.print_info_about_object)
+        # self.create_ROI_2.clicked.connect(self.print_info_about_object)
+        self.create_ROI_2.clicked.connect(self.filter_objects)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -280,6 +255,7 @@ class mainwindows(QtWidgets.QWidget):
 
         self.load_radar_poincloud()
 
+        canvas_size = (340,480)
         null_image = np.zeros((340,480,3))
         null_image[30:340, 320:340, :] = 240
 
@@ -761,7 +737,77 @@ class mainwindows(QtWidgets.QWidget):
         # print("original:", objects_original)
         print("are equal:", objects_original == objects_listwidget == objects_3d == objects_bev)
 
+
+
+
     #other functions to move to another libraries
+
+    def create_camera_view_vis(self):
+        fov = 90  # degrees
+        elevation = 30
+        distance = 100  # if needed
+        angle = [0, 0]  # phi, theta
+        pos_camera = [0, 10, 0]
+
+        phi_right = (angle[0] - fov / 2) / 180 * pi
+        phi_left = (angle[0] + fov / 2) / 180 * pi
+        theta_bottom = (angle[1] - elevation / 2) / 180 * pi
+        theta_up = (angle[1] + elevation / 2) / 180 * pi
+
+        range_xy = [tan(phi_right), tan(phi_left)]
+        range_yz = [tan(theta_bottom), tan(theta_up)]
+        corners = [[0,0,0],
+                   [distance, distance*range_xy[0], distance*range_yz[0]],
+                   [distance, distance*range_xy[0], distance*range_yz[1]],
+                   [distance, distance*range_xy[1], distance*range_yz[0]],
+                   [distance, distance*range_xy[1], distance*range_yz[1]]]
+        corners = np.array(corners)
+        faces = np.array([[0,1,2],[0,2,3],[0,3,4],[0,4,1],[1,2,3],[2,3,4]])
+        Camera_view = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(0.3, 0.3, 0.7, 0.1), drawEdges=True,
+                             drawFaces=False)
+        return Camera_view
+
+    def filter_objects(self, coords):
+        fov = 90  # degrees
+        elevation = 30
+        distance = 100  # if needed
+        angle = [0, 0]  # phi, theta
+        pos_camera = [0, 10, 0]
+
+        phi_right = (angle[0] - fov / 2) / 180 * pi
+        phi_left = (angle[0] + fov / 2) / 180 * pi
+        theta_bottom = (angle[1] - elevation / 2) / 180 * pi
+        theta_up = (angle[1] + elevation / 2) / 180 * pi
+
+        range_xy = [tan(phi_right), tan(phi_left)]
+        range_xz = [tan(theta_bottom), tan(theta_up)]
+
+        #     frame[:,1] y
+        #     frame[:,2] z
+        #
+        # for object in self.objects:
+        #     coords = object['coord']
+        #     x = coords["x"]
+        #     y = coords["y"]
+        #     z = coords["z"]
+        #
+        #     if (y > range_xy[0]*x) and (y < range_xy[1]*x) and (z  > range_xz[0]*x) and (z < range_xz[1]*x):
+        #         print(coords)
+
+
+        x = coords["x"]
+        y = coords["y"]
+        z = coords["z"]
+
+        if (y > range_xy[0]*x) and (y < range_xy[1]*x) and (z  > range_xz[0]*x) and (z < range_xz[1]*x):
+            print(coords)
+            return True
+        return False
+
+        # mask = (frame[:, 1] > range_xy[0] * frame[:, 0] +) * (frame[:, 1] < range_xy[1] * frame[:, 0]) * (
+        #             frame[:, 2] > range_xz[0] * frame[:, 0]) * (frame[:, 2] < range_xz[1] * frame[:, 0])
+        #
+        # return frame[mask]
 
     def changeModeCanvas(self, state):
         self.change_status(f"state of checkbox has changed to {state == Qt.Checked}")
@@ -804,13 +850,17 @@ class mainwindows(QtWidgets.QWidget):
 
     def update_canvas_shape(self, object):
         coords = object["coord"]
+
         x, y, z, l, w, h, angle = coords.values()
+
+        canvas_size = (340, 480)
+
         pos = [y, z]
         size = [w, h]
-        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
-        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
-        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
-        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
+        left_corner_1 = QPoint(canvas_size[0]/2 -  (pos[0] - size[0] / 2) ,canvas_size[1]/2 -  (pos[1] - size[1] / 2))
+        left_corner_2 = QPoint(canvas_size[0]/2 -  (pos[0] - size[0] / 2), canvas_size[1]/2 -  (pos[1] + size[1] / 2))
+        right_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 -  (pos[1] - size[1] / 2))
+        right_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 -  (pos[1] + size[1] / 2))
 
         shape_instance = Shape()
         shape_instance.addPoint(left_corner_1)
@@ -830,12 +880,15 @@ class mainwindows(QtWidgets.QWidget):
 
 
     def create_new_shape_canvas(self):
+
+        canvas_size = (340, 480)
+
         pos = [100,100]
         size = [50,50]
-        left_corner_1 = QPoint(pos[0]-size[0]/2, pos[1] - size[1]/2)
-        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
-        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
-        right_corner_2 = QPoint(pos[0] + size[0]/2, pos[1] + size[1]/2)
+        left_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
+        left_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
+        right_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
+        right_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
 
         shape_instance  = Shape()
         shape_instance.addPoint(left_corner_1)
@@ -854,7 +907,16 @@ class mainwindows(QtWidgets.QWidget):
             self.change_canvas_shape(shape)
         self.change_status("shape moved")
 
+    def make_shape_unvisible(self):
+        for shape in self.canvas.shapes:
+            self.canvas.setShapeVisible(shape, False)
+        self.canvas.repaint()
+        print("made unvisible")
+
     def change_canvas_shape(self, shape):
+
+        canvas_size = (340, 480)
+
         shape_coords = shape.points
         y = (shape_coords[0].x() + shape_coords[2].x())/2
         z = (shape_coords[0].y() + shape_coords[2].y())/2
@@ -872,17 +934,29 @@ class mainwindows(QtWidgets.QWidget):
         self.synchronize_all_widgets(obj_idx= obj_idx)
 
     def synchronize_canvas_shape(self, object):
+
+        canvas_size = (340, 480)
+
+
         shape = object["Canvas_object"]
         coords = object["coord"]
         x,y,z,l,w,h,angle = coords.values()
+
+        if self.filter_objects(coords):
+            self.canvas.setShapeVisible(shape, True)
+        else:
+            self.canvas.setShapeVisible(shape, False)
+        self.canvas.setShapeVisible(shape, self.filter_objects(coords))
+
         pos = [y, z]
         size = [w, h]
-        left_corner_1 = QPoint(pos[0] - size[0] / 2, pos[1] - size[1] / 2)
-        left_corner_2 = QPoint(pos[0] - size[0] / 2, pos[1] + size[1] / 2)
-        right_corner_1 = QPoint(pos[0] + size[0] / 2, pos[1] - size[1] / 2)
-        right_corner_2 = QPoint(pos[0] + size[0] / 2, pos[1] + size[1] / 2)
+        left_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
+        left_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
+        right_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
+        right_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
         shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
-        self.canvas.update()
+        # self.canvas.update()
+        self.canvas.repaint()
 
     def highlight_select(self, object):
         shape = object["Canvas_object"]

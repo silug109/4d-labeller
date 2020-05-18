@@ -19,6 +19,8 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
     def __init__(self, *args, **kwargs):
 
+        # if dev_mode in args:
+        #     self.dev_mode = d
         self.scale = 1.0
         super(Volumetric_widget_2, self).__init__(*args, **kwargs)
 
@@ -124,17 +126,10 @@ class Volumetric_widget_2(gl.GLViewWidget):
         cubegl_object = self.create_3d_cube([x, y, z], [l, w, h], angle)
         self.addItem(cubegl_object)
         object["3d_object"] = cubegl_object
-        # return object
 
     def synchronize_3d_object(self, object):
-        # objects = self.parent().objects
-        # object = objects[obj_idx]
-
         object_3d = object["3d_object"]
         new_coords = object["coord"]
-
-        # print("new cords inside of threedvis: ", str(new_coords))
-
         meshdata = self.create_meshdata(coords = new_coords)
         object_3d.setMeshData(**meshdata)
 
@@ -344,7 +339,7 @@ class Volumetric_widget_2(gl.GLViewWidget):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     mainwindow = QtWidgets.QWidget()
-    widg = Volumetric_widget_2(mainwindow)
+    widg = Volumetric_widget_2(mainwindow, dev_mode = "solo")
     widg.create_3d_cube((10,10),(20,20))
     widg.create_3d_cube((-110, 20), (20, 20))
 

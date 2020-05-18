@@ -23,6 +23,13 @@ CURSOR_GRAB = Qt.OpenHandCursor
 def distance(p):
     return sqrt(p.x() * p.x() + p.y() * p.y())
 
+class BoundingBox(pg.RectROI):
+
+    def __init__(self, pos, size, centered=False, sideScalers=False, **args):
+        super().__init__(self, pos, size, centered = centered, sideScalers= sideScalers, **args)
+        # print(dir(self))
+
+    # def mousePressEvent(self, ev):
 
 class Bev_Canvas_2(pg.GraphicsView):
 
@@ -47,25 +54,21 @@ class Bev_Canvas_2(pg.GraphicsView):
     def __init__(self, dev_mode = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.objects = self.parent().objects
-        self.selected_objects_idxs = self.parent().selected_objects_idxs
+        print(f"dev mode {dev_mode}")
 
-    #     # Initialise local state.
-    #     self.mode = self.EDIT
-    #     self.shapes = []
-    #     self.current = None
-    #     self.selectedShape = None  # save the selected shape here
-    #     self.selectedShapeCopy = None
-    #     self.drawingLineColor = QColor(0, 0, 255)
-    #     self.drawingRectColor = QColor(0, 0, 255)
-    #     self.line = Shape(line_color=self.drawingLineColor)
-    #     self.prevPoint = QPointF()
-    #     self.offsets = QPointF(), QPointF()
-    #     self.scale = 1.0
-    #     self.pixmap = QPixmap()
+        self.dev_mode = dev_mode
+        if self.dev_mode == "SOLO":
+            self.objects = []
+            self.selected_objects_idxs = []
+        else:
+            self.objects = self.parent().objects
+            self.selected_objects_idxs = self.parent().selected_objects_idxs
 
-        # self.bev_widget = pg.GraphicsView(self)
-        # self.bev_widget.resize(640,640)
+
+        # self.objects = self.parent().objects
+        # self.selected_objects_idxs = self.parent().selected_objects_idxs
+
+        self.currentSelected = []
 
         self.bev_view = pg.ViewBox(border = {'color': "FF0", "width": 2})
         self.addItem(self.bev_view)
@@ -78,11 +81,6 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         y_axis_item.setScale(5)
         y_axis_item.setRange(0,10)
-
-        self.dev_mode = dev_mode
-        self.currentSelected = []
-
-        # self.load_radar()
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.WheelFocus)
@@ -116,8 +114,22 @@ class Bev_Canvas_2(pg.GraphicsView):
 
         for roi in rois:
             if roi.isMoving or any([handle['item'].isMoving for handle in roi.handles]):
+                print(f"Moving roi: {roi}")
                 ind = [item["Bev_object"] for item in self.objects].index(roi)
                 self.update_object_db(ind)
+
+    # def mousePressEvent(self, ev):
+    #     super().mousePressEvent(ev)
+    #
+    #     print(ev.pos())
+    #     pos = ev.pos()
+    #     if ev.button() == Qt.LeftButton:
+    #         print("Trying to do selection over object")
+    #         for object in self.objects:
+    #             bbox = object["Bev_object"]
+    #             print(bbox.pos())
+    #             # if  bbox.pos.x() <= pos.x() <=
+
 
     def update_object_db(self, object_ind):
         object = self.objects[object_ind]
@@ -158,6 +170,7 @@ class Bev_Canvas_2(pg.GraphicsView):
         bounding_box = self.create_ROI_instance(pos = [x,y], size = [l,w], angle = angle)
         self.bev_view.addItem(bounding_box)
         object["Bev_object"] = bounding_box
+        bounding_box.sigClicked.connect(self.print_clicked)
         # #alternative
         # objects = self.parent().objects
         # object = objects[obj_idx]
@@ -181,10 +194,11 @@ class Bev_Canvas_2(pg.GraphicsView):
         roi.setAngle(coords["angle"])
 
     def create_ROI_instance(self, pos = [10,10], size = [20,20], angle = 0):
-        bounding_box = pg.RectROI(pos, size, angle = angle, centered=True, sideScalers=True)
+        # bounding_box = pg.RectROI(pos, size, angle = angle, centered=False, sideScalers=True)
+        bounding_box = BoundingBox(pos, size, angle = angle, centered= False, sideScalers= True)
         bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
         # bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-        bounding_box.addRotateHandle([0.0, 1.5], [0, 0])
+        # bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
         return bounding_box
 
     def load_radar(self):
@@ -204,7 +218,46 @@ class Bev_Canvas_2(pg.GraphicsView):
         xy = ptcld[:, 0:2]
         return xy
 
+
+
+    ### test funcs
+    def create_obj(self):
+        coord = {"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}
+        object = {'coord': coord}
+        self.objects.append(object)
+        self.update_object(object)
+
+
+    def print_info(self):
+        for object in self.objects:
+            print(object)
+
+    def check_synchro(self):
+        for object in self.objects:
+            object["coord"]["x"] += 10
+            self.synchronize_object(object)
+
+    def print_clicked(self,ev):
+        print("Кажись, кого-то выбрали!")
+        print(ev.pos())
+
+    def check_select(self):
+        for object in self.objects:
+            bb = object["Bev_object"]
+            bb.setSelected(False)
+        print("selected")
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
+
     app = QtWidgets.QApplication(sys.argv)
     wind = QtWidgets.QWidget()
 
@@ -215,9 +268,19 @@ if __name__ == "__main__":
     layout.addWidget(canvas)
 
     create_roi_but = QtWidgets.QPushButton("CREATE ROI")
-    create_roi_but.clicked.connect(canvas.create_ROI)
+    create_roi_but.clicked.connect(canvas.create_obj)
     but_layout.addWidget(create_roi_but)
+    print_roi_but = QtWidgets.QPushButton("Print info")
+    print_roi_but.clicked.connect(canvas.print_info)
+    but_layout.addWidget(print_roi_but)
+    sync_roi_but = QtWidgets.QPushButton("lets move")
+    sync_roi_but.clicked.connect(canvas.check_synchro)
+    but_layout.addWidget(sync_roi_but)
+    select_roi_but = QtWidgets.QPushButton("lets select")
+    select_roi_but.clicked.connect(canvas.check_select)
+    but_layout.addWidget(select_roi_but)
     layout.addLayout(but_layout)
+
 
     wind.setLayout(layout)
 
