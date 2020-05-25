@@ -17,12 +17,19 @@ class Volumetric_widget_2(gl.GLViewWidget):
     SigChanged3dObject = pyqtSignal(int)
     SigDelete3dObject = pyqtSignal()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dev_mode = None, *args, **kwargs):
 
-        # if dev_mode in args:
-        #     self.dev_mode = d
+        self.dev_mode = dev_mode
         self.scale = 1.0
+
         super(Volumetric_widget_2, self).__init__(*args, **kwargs)
+
+        self.noRepeatKeys = [QtCore.Qt.Key_Right, QtCore.Qt.Key_Left, QtCore.Qt.Key_Up, QtCore.Qt.Key_Down,
+                             QtCore.Qt.Key_PageUp, QtCore.Qt.Key_PageDown, QtCore.Qt.Key_W, QtCore.Qt.Key_Q,
+                             QtCore.Qt.Key_S, QtCore.Qt.Key_A, QtCore.Qt.Key_D, QtCore.Qt.Key_E]
+        # self.keysPressed = {}
+        # self.keyTimer = QtCore.QTimer()
+        # self.keyTimer.timeout.connect(self.evalKeyState)
 
         axis_qt = gl.GLAxisItem()
         grid3d_qt = gl.GLGridItem()
@@ -41,6 +48,14 @@ class Volumetric_widget_2(gl.GLViewWidget):
 
         self.objects = self.parent().objects
         self.selected_object_idxs = self.parent().selected_objects_idxs
+
+        # if (self.dev_mode is None):
+        #     print("created so")
+        #
+        # else:
+        #     print("created soso")
+        #     self.objects = []
+        #     self.selected_object_idxs = []
 
 
     def mouseMoveEvent(self, ev):
@@ -106,15 +121,68 @@ class Volumetric_widget_2(gl.GLViewWidget):
         delta = ev.angleDelta()
         delta_value = delta.y()/120
 
+        print("we are inside wheel event:", self.objects)
+
         if ev.modifiers() == QtCore.Qt.ShiftModifier:
-            self.scale_object(self.current_selected, delta_value)
+            self.scale_object(self.current_selected, [0,0,delta_value])
         elif ev.modifiers() == QtCore.Qt.ControlModifier:
-            self.translate_object(self.current_selected, delta_value)
+            self.translate_object(self.current_selected, [0,0,delta_value])
         elif ev.modifiers() == QtCore.Qt.AltModifier:
             delta_value = delta.x() / 120
             self.rotate_object(self.current_selected, delta_value)
         else:
             super().wheelEvent(ev)
+
+    def keyPressEvent(self, ev):
+        if ev.key() in self.noRepeatKeys:
+            ev.accept()
+            if ev.isAutoRepeat():
+                return
+            self.keysPressed[ev.key()] = 1
+            self.evalKeyState()
+
+    def keyReleaseEvent(self, ev):
+        if ev.key() in self.noRepeatKeys:
+            ev.accept()
+            if ev.isAutoRepeat():
+                return
+            try:
+                del self.keysPressed[ev.key()]
+            except:
+                self.keysPressed = {}
+            self.evalKeyState()
+
+    def evalKeyState(self):
+        speed = 2.0
+        if len(self.keysPressed) > 0:
+            for key in self.keysPressed:
+                if key == QtCore.Qt.Key_Right:
+                    self.orbit(azim=-speed, elev=0)
+                elif key == QtCore.Qt.Key_Left:
+                    self.orbit(azim=speed, elev=0)
+                elif key == QtCore.Qt.Key_Up:
+                    self.orbit(azim=0, elev=-speed)
+                elif key == QtCore.Qt.Key_Down:
+                    self.orbit(azim=0, elev=speed)
+                elif key == QtCore.Qt.Key_PageUp:
+                    pass
+                elif key == QtCore.Qt.Key_PageDown:
+                    pass
+                elif key == QtCore.Qt.Key_W:
+                    self.translate_object(self.current_selected, [speed, 0,0])
+                elif key == QtCore.Qt.Key_S:
+                    self.translate_object(self.current_selected, [-speed, 0, 0])
+                elif key == QtCore.Qt.Key_A:
+                    self.translate_object(self.current_selected, [0, speed, 0])
+                elif key == QtCore.Qt.Key_D:
+                    self.translate_object(self.current_selected, [0, -speed, 0])
+                elif key == QtCore.Qt.Key_Q:
+                    self.translate_object(self.current_selected, [0, 0, speed])
+                elif key == QtCore.Qt.Key_E:
+                    self.translate_object(self.current_selected, [0, 0, -speed])
+                self.keyTimer.start(16)
+        else:
+            self.keyTimer.stop()
 
 
 
@@ -173,18 +241,18 @@ class Volumetric_widget_2(gl.GLViewWidget):
             x,y,z = pos
             l,w,d = size
 
-        # x_top = x + l / 2
-        # x_bot = x - l / 2
-        # y_top = y + w / 2
-        # y_bot = y - w / 2
-        # z_top = z + d/2
-        # z_bot = z - d/2
-        x_top = x + l
-        x_bot = x
-        y_top = y + w
-        y_bot = y
-        z_top = z + d
-        z_bot = z
+        x_top = x + l / 2
+        x_bot = x - l / 2
+        y_top = y + w / 2
+        y_bot = y - w / 2
+        z_top = z + d/2
+        z_bot = z - d/2
+        # x_top = x + l
+        # x_bot = x
+        # y_top = y + w
+        # y_bot = y
+        # z_top = z + d
+        # z_bot = z
         # Todo check
 
         corners = [[x_top, y_bot, z_bot],
@@ -240,32 +308,68 @@ class Volumetric_widget_2(gl.GLViewWidget):
                     item.opts["edgeColor"] = (1,1,1,1)
         self.update()
 
-    def translate_object(self, object_list ,  sign):
-        if (sign != 0) and (len(object_list) > 0 ):
+    # def translate_object(self, object_list , sign):
+    #     if (sign != 0) and (len(object_list) > 0):
+    #         for item in self.items:
+    #             if isinstance(item, gl.GLMeshItem) and (item in object_list):
+    #                 # item.translate(0,0,-sign/abs(sign)*0.5)
+    #                 #or
+    #                 idx = [item["3d_object"] for item in self.objects].index(item)
+    #                 coords = self.objects[idx]["coord"] # coords in self.parent().object overriding
+    #                 coords["z"] -= sign/abs(sign)*0.5
+    #                 meshdata = self.create_meshdata(coords=coords)
+    #                 item.setMeshData(**meshdata)
+    #         self.SigChanged3dObject.emit(idx)
+    #         self.update()
+
+    def translate_object(self, object_list , values):
+        #version_2.0
+        if ( any([i!= 0 for i in values])) and (len(object_list) > 0) and (len(values) == 3):
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
-                    # item.translate(0,0,-sign/abs(sign)*0.5)
-                    #or
                     idx = [item["3d_object"] for item in self.objects].index(item)
                     coords = self.objects[idx]["coord"] # coords in self.parent().object overriding
-                    coords["z"] -= sign/abs(sign)*0.5
+                    if values[0] != 0:
+                        coords["x"] -= values[0]/abs(values[0])
+                    if values[1] != 0:
+                        coords["y"] -= values[1]/abs(values[1])
+                    if values[2] != 0:
+                        coords["z"] -= values[2]/abs(values[2])
                     meshdata = self.create_meshdata(coords=coords)
                     item.setMeshData(**meshdata)
             self.SigChanged3dObject.emit(idx)
             self.update()
 
-    def scale_object(self, object_list,  sign):
-        if sign != 0 and len(object_list) != 0:
+    # def scale_object(self, object_list,  sign):
+    #     if sign != 0 and len(object_list) != 0:
+    #         for item in self.items:
+    #             if isinstance(item, gl.GLMeshItem) and (item in object_list):
+    #                 # item.scale(1,1,sign/abs(sign)*0.01+1)
+    #                 #or
+    #                 idx = [item["3d_object"] for item in self.objects].index(item)
+    #                 coords = self.objects[idx]["coord"]
+    #                 coords["h"] -= sign / abs(sign) * 0.5
+    #                 meshdata = self.create_meshdata(coords=coords)
+    #                 item.setMeshData(**meshdata)
+    #
+    #         self.SigChanged3dObject.emit(idx)
+    #         self.update()
+
+    def scale_object(self, object_list, values):
+        # version_2.0
+        if (any([i != 0 for i in values])) and (len(object_list) > 0) and (len(values) == 3):
             for item in self.items:
                 if isinstance(item, gl.GLMeshItem) and (item in object_list):
-                    # item.scale(1,1,sign/abs(sign)*0.01+1)
-                    #or
                     idx = [item["3d_object"] for item in self.objects].index(item)
-                    coords = self.objects[idx]["coord"]
-                    coords["h"] -= sign / abs(sign) * 0.5
+                    coords = self.objects[idx]["coord"]  # coords in self.parent().object overriding
+                    if values[0] != 0:
+                        coords["l"] -= values[0] / abs(values[0])
+                    if values[1] != 0:
+                        coords["w"] -= values[1] / abs(values[1])
+                    if values[2] != 0:
+                        coords["h"] -= values[2] / abs(values[2])
                     meshdata = self.create_meshdata(coords=coords)
                     item.setMeshData(**meshdata)
-
             self.SigChanged3dObject.emit(idx)
             self.update()
 
@@ -336,16 +440,38 @@ class Volumetric_widget_2(gl.GLViewWidget):
         ptcld_qtobject = gl.GLScatterPlotItem(pos=ptcld[:, :3], color=(1, 1, 1, 1), size=1)
         self.addItem(ptcld_qtobject)
 
+
+    def create_cube_for_test(self):
+        coord = {"x":0, "y": 0, "z": 0, "l": 10, "w":10 , "h": 10, "angle":0}
+        object = {"coord": coord}
+        self.objects.append(object)
+        self.update_object(object)
+
+    def change_view(self):
+        print("this params were:", self.opts)
+        print("viewport = ", self.getViewport())
+        print("camera position: ", self.cameraPosition())
+        # print("change to another")
+        self.setCameraPosition(elevation= -90, azimuth= 0)
+        self.opts["center"] = QVector3D(0,0,10)
+        # print("this params were:", self.opts)
+        self.update()
+
+
 if __name__ == "__main__":
+
     app = QtWidgets.QApplication(sys.argv)
     mainwindow = QtWidgets.QWidget()
-    widg = Volumetric_widget_2(mainwindow, dev_mode = "solo")
-    widg.create_3d_cube((10,10),(20,20))
-    widg.create_3d_cube((-110, 20), (20, 20))
+    ShareWidget = Volumetric_widget_2(parent=mainwindow, dev_mode='solo')
+    widg = Volumetric_widget_2(parent = mainwindow, dev_mode = "solo")
+    print("sharing ли widg? ", widg.isSharing())
 
-    but_1 = QPushButton("button_1")
-    but_1.clicked.connect(widg.highlight_object)
-    but_2 = QPushButton("button_2")
+
+
+    but_1 = QPushButton("create_box")
+    but_1.clicked.connect(widg.create_cube_for_test)
+    but_2 = QPushButton("highlight it!")
+    but_2.clicked.connect(widg.change_view)
     but_3 = QPushButton("button_3")
 
     info_text = QtWidgets.QLabel("hoho")
@@ -360,6 +486,7 @@ if __name__ == "__main__":
     main_layout = QtWidgets.QVBoxLayout()
     main_layout.addLayout(button_layout)
     main_layout.addWidget(widg,3)
+    main_layout.addWidget(ShareWidget, 3)
     main_layout.addWidget(info_text)
     main_layout.addWidget(list_box)
 

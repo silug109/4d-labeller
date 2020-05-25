@@ -1,6 +1,6 @@
 from libs.canvas import Canvas
 from main_windows.info_window import *
-from main_windows.bev_window import Bev_Canvas_2
+from main_windows.bev_window import Bev_Canvas_2, Volumetric_widget_BEV
 from main_windows.volumetric_window import Volumetric_widget_2
 
 from PyQt5.QtGui import QPixmap
@@ -19,6 +19,7 @@ from libs.shape import Shape
 from math import cos,sin,pi,tan
 
 from libs.visualization import pointcloud_coords_generation
+
 
 
 def euler_to_so3(rpy):
@@ -50,6 +51,33 @@ def build_se3_transform(xyzrpy):
     se3[0:3, 3] = np.matrix(xyzrpy[0:3]).transpose()
     return se3
 
+class view_config():
+
+    def __init__(self):
+
+        self.canvas_size = (340, 480)
+        self.fov = 90  # degrees
+        self.elevation = 30
+        self.aspect_ratio = None
+        self.distance = 100  # if needed
+        self.angle = [0, 0]  # phi, theta
+        self.pos_camera = [0, 0, 0]
+
+        self.phi_right = (self.angle[0] - self.fov / 2) / 180 * pi
+        self.phi_left = (self.angle[0] + self.fov / 2) / 180 * pi
+        self.theta_bottom = (self.angle[1] - self.elevation / 2) / 180 * pi
+        self.theta_up = (self.angle[1] + self.elevation / 2) / 180 * pi
+
+        self.range_xy = [tan(self.phi_right), tan(self.phi_left)]
+        self.range_xz = [tan(self.theta_bottom), tan(self.theta_up)]
+
+        self.start_distance = 3
+
+    def update_params(self):
+        pass
+
+
+
 
 class mainwindows(QtWidgets.QWidget):
 # class mainwindows(QtWidgets.QMainWindow):
@@ -71,9 +99,8 @@ class mainwindows(QtWidgets.QWidget):
         self.choose_file = False
 
         self.selected_objects_idxs = []
-
         self.data = None
-
+        self.view_config = view_config()
         super(mainwindows,self).__init__()
 
         self.resize(1280,720)
@@ -84,7 +111,6 @@ class mainwindows(QtWidgets.QWidget):
         self.real_main_layout.addWidget(self.menu)
 
         file = self.menu.addMenu('&File')
-
         exitAction = QtWidgets.QAction('&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
@@ -97,8 +123,6 @@ class mainwindows(QtWidgets.QWidget):
         # OpenFileAction.triggered.connect(app.quit)
         OpenFileAction.triggered.connect(self.open_file)
         file.addAction(OpenFileAction)
-        # TODO функция с загрузкой файлов
-
 
         transform = self.menu.addMenu('&Transform')
 
@@ -107,7 +131,6 @@ class mainwindows(QtWidgets.QWidget):
         # LoadCalibAction.triggered.connect(app.quit)
         LoadCalibAction.triggered.connect(self.load_calib)
         transform.addAction(LoadCalibAction)
-        # TODO функция с калибровкой
 
         annotations = self.menu.addMenu('&Annotations')
 
@@ -123,6 +146,7 @@ class mainwindows(QtWidgets.QWidget):
         LoadAnnotationsAction.triggered.connect(self.load_annotations)
         annotations.addAction(LoadAnnotationsAction)
 
+
         self.main_layout = QtWidgets.QHBoxLayout()
 
         self.statusbar = QtGui.QStatusBar(self)
@@ -134,7 +158,7 @@ class mainwindows(QtWidgets.QWidget):
         self.main_layout.addLayout(self.left_layout,2)
         self.main_layout.addLayout(self.right_layout)
 
-        self.threed_vis = Volumetric_widget_2(self) # widget for 3D visualisations
+        self.threed_vis = Volumetric_widget_2(parent = self) # widget for 3D visualisations
         # self.threed_vis.resize(640,640)
         self.threshold_slider = QtWidgets.QSlider(Qt.Horizontal)
         self.threshold_slider.valueChanged.connect(self.threshold_change)
@@ -154,11 +178,9 @@ class mainwindows(QtWidgets.QWidget):
         self.canvas_shape_change.clicked.connect(self.make_shape_unvisible)
         self.canvas.shapeMoved.connect(self.print_info_if_shape_moved)
 
-
-
-        self.bev_widget = Bev_Canvas_2(parent = self, dev_mode = "Main") # widget for visualisation of bird eye view
-        self.bev_widget.SigBevChange.connect(self.synchronize_all_widgets)
-        self.bev_widget.SigBevCreate.connect(self.true_update_db)
+        # self.bev_widget = self.threed_vis
+        self.bev_widget = Volumetric_widget_BEV(parent = self, dev_mode= None)
+        self.bev_widget.SigSelect3dObject.connect(self.update_selection)
 
         #buttons
         self.threed = QtWidgets.QPushButton('Load 3d')
@@ -170,26 +192,22 @@ class mainwindows(QtWidgets.QWidget):
         self.threed_vis.addItem(cam_object)
 
 
+
+
         self.twod = QtWidgets.QPushButton('Load 2d')
-        self.twod.clicked.connect(self.bev_widget.load_radar)
-
         self.camera = QtWidgets.QPushButton('Load image')
-        # self.camera.clicked.connect(self.)
-
         self.start = QtWidgets.QPushButton('Start')
-        # self.start.clicked.connect(self.printoutboxes)
-
-        self.sync = QtWidgets.QPushButton('synchronize')
-        # self.sync.clicked.connect(self.update_3d_boxes)
-
+        self.sync = QtWidgets.QPushButton('screenshot')
+        self.sync.clicked.connect(self.make_screenshot)
         self.create_ROI_but = QtWidgets.QPushButton('create ROI')
         self.create_ROI_but.clicked.connect(self.create_obj_main)
 
         self.create_ROI_2 = QtWidgets.QPushButton('Print info')
-        # self.create_ROI_2.clicked.connect(self.print_info)
+        self.create_ROI_2.clicked.connect(self.print_info)
         # self.create_ROI_2.clicked.connect(self.print_coord_of_GLMESH)
         # self.create_ROI_2.clicked.connect(self.print_info_about_object)
-        self.create_ROI_2.clicked.connect(self.filter_objects)
+        # self.create_ROI_2.clicked.connect(self.filter_objects)
+        # self.create_ROI_2.clicked.connect(self.generate_trace)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addWidget(self.start)
@@ -203,10 +221,9 @@ class mainwindows(QtWidgets.QWidget):
         self.button_layout_2.addWidget(self.camera)
 
         self.list_widget = ListWidg(self) # widget for info visualisation about boxes
-        # self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets_list)
         self.list_widget.SigObjectChanged.connect(self.synchronize_all_widgets)
         self.list_widget.SigSelectionChanged.connect(self.update_selection)
-        self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
+        # self.list_widget.SigObjectDeleted.connect(self.delete_objects_from_db)
         # self.list_widget.SigCreateObject.connect(self.list_object_created)
         self.list_widget.SigCreateObject.connect(self.true_update_db)
 
@@ -247,18 +264,15 @@ class mainwindows(QtWidgets.QWidget):
 
 
 
+
         self.left_layout.addWidget(self.statusbar)
-
         self.real_main_layout.addLayout(self.main_layout)
-
         self.setLayout(self.real_main_layout)
-
-        self.load_radar_poincloud()
+        # self.load_radar_poincloud()
 
         canvas_size = (340,480)
         null_image = np.zeros((340,480,3))
         null_image[30:340, 320:340, :] = 240
-
         null_Qimage = QtGui.QImage(null_image, null_image.shape[1], \
                              null_image.shape[0], null_image.shape[1] * 3, QtGui.QImage.Format_RGB888)
         null_pixmap = QtGui.QPixmap(null_Qimage)
@@ -280,64 +294,56 @@ class mainwindows(QtWidgets.QWidget):
         # image_pixmap_resized = image_pixmap.scaled(640,480,QtCore.Qt.KeepAspectRatio)
         # self.canvas.loadPixmap(image_pixmap_resized)
 
+        # self.start_distance = 3
+
+
+
     def update_selection(self, source = None):
-
-        #Todo Traceback (most recent call last): File "/home/cognitive-comp/Рабочий стол/things2watch/PYQT_experiments/app.py", line 247, in update_selection idx_selected = [item["3d_object"] for item in self.objects ].index(obj_3d) ValueError: <pyqtgraph.opengl.items.GLGridItem.GLGridItem object at 0x7f65f3d50828> is not in list
-
-        print("ПРОИЗОШОЛ СЕЛЕКТ")
-
         if source == None:
             print("MDA NU I SHIT")
             return 0
-
         if source == "3d":
-
             current_selected = self.threed_vis.current_selected
-
             idxs = []
-
             for obj_3d in current_selected:
-                idx_selected = [item["3d_object"] for item in self.objects ].index(obj_3d)
+                idx_selected = [item["3d_object"] for item in self.objects].index(obj_3d)
                 idxs.append(idx_selected)
 
             self.selected_objects_idxs = idxs
 
             self.list_widget.current_selected = [self.objects[idx]["listitem"] for idx in self.selected_objects_idxs]
             self.list_widget.update_selection()
-
-            self.bev_widget.currentSelected = [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]
-            print("im here")
+            self.bev_widget.currentSelected = [self.objects[idx]["3d_object_2"] for idx in self.selected_objects_idxs]
             self.bev_widget.highlight_selected()
-
             print(self.selected_objects_idxs)
 
         if source == "list":
-
             current_selected = self.list_widget.current_selected
             print("list selected: ", len(current_selected))
-
             idxs = []
-
             for selected_listitem in current_selected:
-
-                # print(selected_listitem)
-                # print(self.objects["listitem"])
-
                 idx_selected = [item["listitem"] for item in self.objects].index(selected_listitem)
                 idxs.append(idx_selected)
-
             self.selected_objects_idxs = idxs
-
             self.threed_vis.current_selected = [self.objects[idx]["3d_object"] for idx in self.selected_objects_idxs]
             self.threed_vis.highlight_object()
 
-            self.bev_widget.currentSelected = [self.objects[idx]["Bev_object"] for idx in self.selected_objects_idxs]
+            self.bev_widget.current_selected = [self.objects[idx]["3d_object_2"] for idx in self.selected_objects_idxs]
             self.bev_widget.highlight_selected()
+        if source == "Bev":
+            current_selected = self.bev_widget.current_selected
+            idxs = []
+            for obj_3d in current_selected:
+                idx_selected = [item["3d_object_2"] for item in self.objects].index(obj_3d)
+                idxs.append(idx_selected)
 
-
-        # self.update_list_widget(idxs)
-        # self.update_3d_boxes(idxs)
-        # self.update_bev_boxes(idxs)
+            self.selected_objects_idxs = idxs
+            self.list_widget.current_selected = [self.objects[idx]["listitem"] for idx in
+                                                 self.selected_objects_idxs]
+            self.list_widget.update_selection()
+            self.threed_vis.currentSelected = [self.objects[idx]["3d_object"] for idx in
+                                               self.selected_objects_idxs]
+            self.threed_vis.highlight_object()
 
     def load_radar_poincloud(self):
         '''
@@ -383,29 +389,11 @@ class mainwindows(QtWidgets.QWidget):
         '''
         pass
 
-    def reset(self):
-        '''
-        удаляет все объекты со всех виджетов.
-
-        for widget in self.widgets:
-            widget.reset()
-        '''
-        pass
-
     def create_3d_cube(self, pos, size, angle=0):
         return self.threed_vis.create_3d_cube(pos,size,angle)
 
-    def update_one_object_db(self, object_ind):
-        pass
-
-
     def true_update_db(self):
-        # должен вызываться после создания в одном из виджетов объекта.
-
-        # object = self.objects[idx]
-        # or
         object = self.objects[-1]
-
         idx = len(self.objects)-1
 
         # # self.db_fields = ["coord", "class","Bev_object","3d_object", "id", "listwidgetitem", "listitem", "IsSelected"]
@@ -413,7 +401,8 @@ class mainwindows(QtWidgets.QWidget):
         # # for field in self.db_fields:
         # #     if sel
         #
-        if object.get("Bev_object") is None:
+
+        if object.get("3d_object_2") is None:
             print("Update db in bev widget")
             self.bev_widget.update_object(object)
             print(object)
@@ -430,52 +419,8 @@ class mainwindows(QtWidgets.QWidget):
         print(object)
 
     def create_obj_main(self):
-        self.objects.append({"coord":{"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}, "id":"shit"})
+        self.objects.append({"coord":{"x": 0, "y": 0, "z": 5, "l": 10, "w": 10, "h": 10, "angle": 0}, "id":"shit", "class":None})
         self.true_update_db()
-
-    # def update_db(self):
-    #
-    #     print("всего объектов: ", len(self.objects))
-    #
-    #     ind = len(self.objects) - 1
-    #     item = self.objects[-1]
-    #
-    #     bev_object = item["Bev_object"]
-    #     x, y, l, w, angle = bev_object.pos()[0], bev_object.pos()[1], bev_object.size()[0], bev_object.size()[1], bev_object.angle()
-    #     x, y = x + l / 2, y + w / 2
-    #     cubegl_object = self.threed_vis.create_3d_cube([x, y], [l, w], angle)
-    #     self.threed_vis.addItem(cubegl_object)
-    #
-    #     coord = {"x":x, "y":y, "z":5, "l":l, "w":w, "h":10, "angle": angle}
-    #     class_instance = "Cat"
-    #     id_instance = "some_id"
-    #
-    #
-    #     myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
-    #
-    #     # myListWidgetObject = QCustomQWidget()
-    #     myListWidgetObject.setTextUp(id_instance)
-    #     myListWidgetObject.setTextDown(str(coord))
-    #
-    #     # ListWidgetItem = QtWidgets.QListWidgetItem(self.list_widget)
-    #     # ListWidgetItem.setSizeHint(myListWidgetObject.sizeHint())
-    #
-    #     self.list_widget.add_item(item = ListWidgetItem, item_object= myListWidgetObject)
-    #     # self.list_widget.addItem(ListWidgetItem)
-    #     # self.list_widget.setItemWidget(ListWidgetItem, myListWidgetObject)
-    #     #Todo change adding of listitem
-    #
-    #     item["coord"] = coord
-    #     item["class"] = class_instance
-    #     item["3d_object"] = cubegl_object
-    #     item["id"] = id_instance
-    #     item["listwidgetitem"] = myListWidgetObject
-    #     item["listitem"] = ListWidgetItem
-    #     item["IsSelected"] = False
-    #
-    #     self.objects[ind] = item
-    #
-    #     print("INIT: ",self.objects[ind])
 
     def list_object_created(self):
 
@@ -492,31 +437,17 @@ class mainwindows(QtWidgets.QWidget):
         cubegl_object = self.threed_vis.create_3d_cube([x, y, z], [l, w, h], angle)
         self.threed_vis.addItem(cubegl_object)
 
-        bounding_box = pg.RectROI([x, y], [l, w], angle =  angle ,centered=True, sideScalers=True)
-        bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
-        bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-        self.bev_widget.bev_view.addItem(bounding_box)
-
+        cubegl_object_2 = self.bev_widget.create_3d_cube([x, y, z], [l, w, h], angle)
+        self.bev_widget.addItem(cubegl_object_2)
 
         item = self.new_object
         item["3d_object"] = cubegl_object
-        item["Bev_object"] = bounding_box
+        item["3d_object_2"] = cubegl_object_2
         # item["id"] = id_instance
         # item["listwidgetitem"] = myListWidgetObject
         # item["listitem"] = ListWidgetItem
         item["IsSelected"] = False
-
         self.objects.append(item)
-        pass
-
-
-    def delete_objects_from_db(self, value):
-
-        # parser of idx
-        # idxs =
-
-        print("emitted from function: ", value)
-        print("Opa choto nado udalat")
 
     def delete_selected_items(self):
         print("Перед удалением объектов было: ", len(self.objects))
@@ -531,18 +462,18 @@ class mainwindows(QtWidgets.QWidget):
             self.threed_vis.removeItem(selected_3d)
             # self.threed_vis.update()
 
-            selected_roi = selected_object["Bev_object"]
-            self.bev_widget.bev_view.removeItem(selected_roi)
+            selected_3d_2 = selected_object['3d_object_2']
+            self.bev_widget.removeItem(selected_3d_2)
 
             print("Во время удаления их становится: ", len(self.objects))
 
     def synchronize_all_widgets(self, obj_idx):
         object = self.objects[obj_idx]
 
-        self.bev_widget.synchronize_object(object)
+        self.bev_widget.synchronize_3d_object(object)
         self.threed_vis.synchronize_3d_object(object)
         self.list_widget.synchronizeListItem(object)
-        self.synchronize_canvas_shape(object)
+        # self.synchronize_canvas_shape(object)
         self.test_all_objects_are_same()
 
     # Menu functions
@@ -681,6 +612,8 @@ class mainwindows(QtWidgets.QWidget):
             cubegl_object = self.threed_vis.create_3d_cube([x, y, z], [l, w, d], angle)
             self.threed_vis.addItem(cubegl_object)
 
+            self.bev_widget.addItem(cubegl_object)
+
             id_instance = "some_id"
 
             myListWidgetObject, ListWidgetItem = self.list_widget.create_item()
@@ -689,15 +622,17 @@ class mainwindows(QtWidgets.QWidget):
             myListWidgetObject.setTextDown(str(coord_str))
             self.list_widget.add_item(ListWidgetItem, myListWidgetObject)
 
-            bounding_box = pg.RectROI([x, y], [l, w], angle = angle,centered=True, sideScalers=True)
-            bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
-            bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
-            self.bev_widget.bev_view.addItem(bounding_box)
+            # bounding_box = pg.RectROI([x, y], [l, w], angle = angle,centered=True, sideScalers=True)
+            # bounding_box.addTranslateHandle([0.5, 0.5], [0.5, 0.5])
+            # bounding_box.addRotateHandle([0.5, 1.5], [0.5, 0.5])
+            # self.bev_widget.bev_view.addItem(bounding_box)
 
-            item["Bev_object"] = bounding_box
+
+            # item["Bev_object"] = bounding_box
             item["coord"] = object["coord"]
             item["class"] = class_instance
             item["3d_object"] = cubegl_object
+            item["3d_object_2"] = cubegl_object
             item["id"] = id_instance
             item["listwidgetitem"] = myListWidgetObject
             item["listitem"] = ListWidgetItem
@@ -715,7 +650,7 @@ class mainwindows(QtWidgets.QWidget):
 
     def print_info(self):
         for object in self.objects:
-            print("coords: ", object['coord'], " class: ",object["class"] )
+            print(object, "coord: ", object['coord'], " class: ",object["class"] )
 
     def print_coord_of_GLMESH(self):
         print(self.selected_objects_idxs)
@@ -737,30 +672,19 @@ class mainwindows(QtWidgets.QWidget):
         # print("original:", objects_original)
         print("are equal:", objects_original == objects_listwidget == objects_3d == objects_bev)
 
-
-
-
     #other functions to move to another libraries
 
     def create_camera_view_vis(self):
-        fov = 90  # degrees
-        elevation = 30
-        distance = 100  # if needed
-        angle = [0, 0]  # phi, theta
-        pos_camera = [0, 10, 0]
 
-        phi_right = (angle[0] - fov / 2) / 180 * pi
-        phi_left = (angle[0] + fov / 2) / 180 * pi
-        theta_bottom = (angle[1] - elevation / 2) / 180 * pi
-        theta_up = (angle[1] + elevation / 2) / 180 * pi
+        range_xy = self.view_config.range_xy
+        range_xz = self.view_config.range_xz
+        distance = self.view_config.distance
 
-        range_xy = [tan(phi_right), tan(phi_left)]
-        range_yz = [tan(theta_bottom), tan(theta_up)]
         corners = [[0,0,0],
-                   [distance, distance*range_xy[0], distance*range_yz[0]],
-                   [distance, distance*range_xy[0], distance*range_yz[1]],
-                   [distance, distance*range_xy[1], distance*range_yz[0]],
-                   [distance, distance*range_xy[1], distance*range_yz[1]]]
+                   [distance, distance*range_xy[0], distance*range_xz[0]],
+                   [distance, distance*range_xy[0], distance*range_xz[1]],
+                   [distance, distance*range_xy[1], distance*range_xz[0]],
+                   [distance, distance*range_xy[1], distance*range_xz[1]]]
         corners = np.array(corners)
         faces = np.array([[0,1,2],[0,2,3],[0,3,4],[0,4,1],[1,2,3],[2,3,4]])
         Camera_view = gl.GLMeshItem(vertexes=corners, faces=faces, faceColors=(0.3, 0.3, 0.7, 0.1), drawEdges=True,
@@ -768,46 +692,42 @@ class mainwindows(QtWidgets.QWidget):
         return Camera_view
 
     def filter_objects(self, coords):
-        fov = 90  # degrees
-        elevation = 30
-        distance = 100  # if needed
-        angle = [0, 0]  # phi, theta
-        pos_camera = [0, 10, 0]
-
-        phi_right = (angle[0] - fov / 2) / 180 * pi
-        phi_left = (angle[0] + fov / 2) / 180 * pi
-        theta_bottom = (angle[1] - elevation / 2) / 180 * pi
-        theta_up = (angle[1] + elevation / 2) / 180 * pi
-
-        range_xy = [tan(phi_right), tan(phi_left)]
-        range_xz = [tan(theta_bottom), tan(theta_up)]
-
-        #     frame[:,1] y
-        #     frame[:,2] z
+        # fov = 90  # degrees
+        # elevation = 30
+        # distance = 100  # if needed
+        # angle = [0, 0]  # phi, theta
+        # pos_camera = [0, 10, 0]
         #
-        # for object in self.objects:
-        #     coords = object['coord']
-        #     x = coords["x"]
-        #     y = coords["y"]
-        #     z = coords["z"]
+        # phi_right = (angle[0] - fov / 2) / 180 * pi
+        # phi_left = (angle[0] + fov / 2) / 180 * pi
+        # theta_bottom = (angle[1] - elevation / 2) / 180 * pi
+        # theta_up = (angle[1] + elevation / 2) / 180 * pi
         #
-        #     if (y > range_xy[0]*x) and (y < range_xy[1]*x) and (z  > range_xz[0]*x) and (z < range_xz[1]*x):
-        #         print(coords)
+        # range_xy = [tan(phi_right), tan(phi_left)]
+        # range_xz = [tan(theta_bottom), tan(theta_up)]
 
+        # fov = self.view_config.fov
+        # elevation = self.view_config.elevation
+        # distance = self.view_config.distance
+        # angle = self.view_config.angle
+        # pos_camera = self.view_config.pos_camera
+        # phi_right = self.view_config.phi_right
+        # phi_left = self.view_config.phi_left
+        # theta_bottom = self.view_config.theta_bottom
+        # theta_up = self.view_config.theta_up
+        range_xy = self.view_config.range_xy
+        range_xz = self.view_config.range_xz
 
         x = coords["x"]
         y = coords["y"]
         z = coords["z"]
 
+        print(f"inside filtering:x = {x} ,y = {y},  z = {z}, bound_y = {range_xy[0]*x , range_xy[1]*x} , bound_z = {x*range_xz[0], x*range_xz[1]}")
+
         if (y > range_xy[0]*x) and (y < range_xy[1]*x) and (z  > range_xz[0]*x) and (z < range_xz[1]*x):
             print(coords)
             return True
         return False
-
-        # mask = (frame[:, 1] > range_xy[0] * frame[:, 0] +) * (frame[:, 1] < range_xy[1] * frame[:, 0]) * (
-        #             frame[:, 2] > range_xz[0] * frame[:, 0]) * (frame[:, 2] < range_xz[1] * frame[:, 0])
-        #
-        # return frame[mask]
 
     def changeModeCanvas(self, state):
         self.change_status(f"state of checkbox has changed to {state == Qt.Checked}")
@@ -853,7 +773,8 @@ class mainwindows(QtWidgets.QWidget):
 
         x, y, z, l, w, h, angle = coords.values()
 
-        canvas_size = (340, 480)
+        # canvas_size = (340, 480)
+        canvas_size = self.view_config.canvas_size
 
         pos = [y, z]
         size = [w, h]
@@ -877,11 +798,10 @@ class mainwindows(QtWidgets.QWidget):
         object["Canvas_object"] = shape_instance
 
 
-
-
     def create_new_shape_canvas(self):
 
-        canvas_size = (340, 480)
+        # canvas_size = (340, 480)
+        canvas_size = self.view_config.canvas_size
 
         pos = [100,100]
         size = [50,50]
@@ -916,7 +836,6 @@ class mainwindows(QtWidgets.QWidget):
     def change_canvas_shape(self, shape):
 
         canvas_size = (340, 480)
-
         shape_coords = shape.points
         y = (shape_coords[0].x() + shape_coords[2].x())/2
         z = (shape_coords[0].y() + shape_coords[2].y())/2
@@ -931,32 +850,98 @@ class mainwindows(QtWidgets.QWidget):
         coords["z"] = z
         coords["w"] = width
         coords["h"] = height
-        self.synchronize_all_widgets(obj_idx= obj_idx)
+        print("still not synchronizing")
+        # self.synchronize_all_widgets(obj_idx= obj_idx)
 
     def synchronize_canvas_shape(self, object):
-
-        canvas_size = (340, 480)
-
 
         shape = object["Canvas_object"]
         coords = object["coord"]
         x,y,z,l,w,h,angle = coords.values()
 
-        if self.filter_objects(coords):
-            self.canvas.setShapeVisible(shape, True)
-        else:
-            self.canvas.setShapeVisible(shape, False)
         self.canvas.setShapeVisible(shape, self.filter_objects(coords))
+
+        mat = self.generate_matrix()
+        # print("матрица хуятрица", mat)
+        # print(np.dot(mat,np.array([x,y,z,-z])))
+        arr = np.dot(mat, np.array([y, z, x, -x]))
+        self.change_status(str(arr))
+        print(arr)
+        print(f" in canvas coords are: x{arr[0]/arr[2]}, y:{arr[1]/arr[2]}")
+
+        y = -float(arr[0]/arr[2])
+        z = -float(arr[1]/arr[2])
+        w = abs(float(w/arr[2]))
+        h = abs(float(h/arr[2]))
+        print(y,z,w,h)
+
 
         pos = [y, z]
         size = [w, h]
+
+        # print(self.canvas.size().height(), self.canvas.size().width())
+        canvas_size = [self.canvas.size().width(),self.canvas.size().height()]
+
         left_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
         left_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] - size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
         right_corner_1 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] - size[1] / 2))
         right_corner_2 = QPoint(canvas_size[0]/2 - (pos[0] + size[0] / 2), canvas_size[1]/2 - (pos[1] + size[1] / 2))
         shape.points = [left_corner_1, right_corner_1, right_corner_2, left_corner_2]
-        # self.canvas.update()
         self.canvas.repaint()
+
+    def generate_matrix(self):
+
+        # canvas_size = (340, 480)
+        # fov = 90  # degrees
+        # elevation = 30
+        # distance = 100  # if needed
+        # angle = [0, 0]  # phi, theta
+        # pos_camera = [0, 10, 0]
+        #
+        # phi_right = (angle[0] - fov / 2) / 180 * pi
+        # phi_left = (angle[0] + fov / 2) / 180 * pi
+        # theta_bottom = (angle[1] - elevation / 2) / 180 * pi
+        # theta_up = (angle[1] + elevation / 2) / 180 * pi
+        #
+        # range_xy = [tan(phi_right), tan(phi_left)]
+        # range_xz = [tan(theta_bottom), tan(theta_up)]
+
+        fov = self.view_config.fov
+        elevation = self.view_config.elevation
+
+        near_focal = 1
+        distant_focal = 100
+
+        s_1 = 1/tan((fov/180*pi)/2)
+        s_2 = 1/tan((elevation/180*pi)/2)
+
+        mat = np.array([[s_1,0,0,0],
+                  [0,s_2,0,0],
+                  [0,0,-distant_focal/(distant_focal-near_focal),-1],
+                  [0,0,-distant_focal*near_focal/(distant_focal-near_focal),0]])
+
+        return mat
+
+    def generate_trace(self):
+        # near_focal = 1
+        # distant_focal = 100
+
+        start_distance = self.view_config.start_distance
+
+        object_hangle = 0
+        object_vangle = 0
+
+        x = start_distance * cos(object_hangle / 180 * pi) * cos(object_vangle / 180 * pi)
+        y = start_distance * sin(object_hangle / 180 * pi) * cos(object_vangle / 180 * pi)
+        z = start_distance * sin(object_vangle / 180 * pi)
+
+        object = self.objects[-1]
+        object['coord']['x'] = x
+        object['coord']['y'] = y
+        object['coord']['z'] = z
+
+        self.synchronize_all_widgets(-1)
+        self.view_config.start_distance +=5
 
     def highlight_select(self, object):
         shape = object["Canvas_object"]
@@ -966,6 +951,11 @@ class mainwindows(QtWidgets.QWidget):
     def some_shape_moved(self):
         self.change_status(f"shape has moved, do something")
 
+    def make_screenshot(self):
+        img = self.threed_vis.readQImage()
+        # image = Image.fromarray(img)
+        image = Image.fromqimage(img)
+        image.save(fp = "screenshot.png")
 
 
 if __name__ == '__main__':
